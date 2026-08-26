@@ -90,6 +90,8 @@ int SV_BotAllocateClient(void)
 	cl->state = CS_ACTIVE;
 	cl->lastPacketTime = svs.time;
 	cl->netchan.remoteAddress.type = NA_BOT;
+	cl->protocol = sv_protocol->integer;
+	cl->legacyClient = qfalse;
 	cl->rate = 16384;
 	cl->scriptId = Scr_AllocArray();
 

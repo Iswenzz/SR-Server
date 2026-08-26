@@ -558,7 +558,7 @@ void SV_BeginClientSnapshot(client_t *client, msg_t *msg)
 	{
 		SV_UpdateServerCommandsToClient(client, msg);
 	}
-	if (client->state >= CS_CONNECTED && client->gamestateSent)
+	if (client->state >= CS_CONNECTED && client->gamestateSent && !SV_IsLegacyClient(client))
 	{
 		SV_UpdateConfigData(client, msg);
 	}
@@ -567,7 +567,14 @@ void SV_BeginClientSnapshot(client_t *client, msg_t *msg)
 void SV_EndClientSnapshot(client_t *client, msg_t *msg)
 {
 	if (client->state != CS_ZOMBIE)
-		SV_WriteDownloadToClient(client);
+	{
+		/* Stock clients take their blocks inline in this message; CoD4X clients
+		   get them on the reliable transport, which builds its own. */
+		if (SV_IsLegacyClient(client))
+			SV_WriteDownloadToClientLegacy(client, msg);
+		else
+			SV_WriteDownloadToClient(client);
+	}
 
 	MSG_WriteByte(msg, svc_EOF);
 

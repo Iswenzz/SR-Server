@@ -217,19 +217,19 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 
 	if (version != sv_protocol->integer)
 	{
-#ifdef COD4X18UPDATE
-		if (version <= 7)
+		/* Stock 1.7/1.7a clients are served the legacy wire format when the
+		   operator opted in. Anything else is a plain version mismatch. */
+		if (sv_allowLegacyClients->boolean && IS_LEGACY_PROTOCOL(version))
 		{
-			Com_Printf(CON_CHANNEL_SERVER, "Have to fix up old client which reports version %d\n", version);
+			Com_DPrintf(CON_CHANNEL_SERVER, "Accepting legacy client which reports version %d\n", version);
 		}
 		else
 		{
-#endif
 			if (version < 9)
 			{
 				NET_OutOfBandPrint(NS_SERVER, from,
 					"error\nThis server requires protocol version: %d\n"
-					"Please install the unofficial CoD4X-update you can find at http://cod4x.ovh\n",
+					"Please install the CoD4X client update you can find at http://cod4x.ovh\n",
 					sv_protocol->integer);
 			}
 			else
@@ -262,10 +262,7 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 			}
 			Com_Printf(CON_CHANNEL_SERVER, "rejected connect from version %i\n", version);
 			return;
-
-#ifdef COD4X18UPDATE
 		}
-#endif
 	}
 
 	// find a client slot:
@@ -416,33 +413,7 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 		return;
 	}
 
-	int bckbegintime;
-
-	if (n < sv_maxclients->integer && newcl->lastPacketTime + 10000 > svs.time)
-	{
-		bckbegintime = newcl->updateBeginTime;
-	}
-	else
-	{
-		bckbegintime = 0;
-	}
-
-#ifdef COD4X18UPDATE
-	if (version <= 7 && newcl->challenge == challenge && newcl->state && newcl->updateconnOK)
-	{
-		Com_Memset(newcl, 0x00, sizeof(client_t));
-		newcl->updateconnOK = qtrue;
-	}
-	else
-	{
-#endif
-		Com_Memset(newcl, 0x00, sizeof(client_t));
-
-#ifdef COD4X18UPDATE
-	}
-#endif
-
-	newcl->updateBeginTime = bckbegintime;
+	Com_Memset(newcl, 0x00, sizeof(client_t));
 
 	newcl->power = 0;			  // Sets the default power for the client
 	newcl->challenge = challenge; // save the challenge
@@ -476,60 +447,36 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 	newcl->gentity = SV_GentityNum(clientNum);
 	newcl->scriptId = Scr_AllocArray();
 	newcl->protocol = version;
+	newcl->legacyClient = (sv_allowLegacyClients->boolean && IS_LEGACY_PROTOCOL(version)) ? qtrue : qfalse;
 
-#ifdef COD4X18UPDATE
-	if (newcl->protocol != sv_protocol->integer)
+	// get the game a chance to reject this connection or modify the userinfo
+	denied2 = ClientConnect(clientNum, newcl->scriptId);
+
+	if (denied2)
 	{
-		newcl->needupdate = qtrue;
+		NET_OutOfBandPrint(NS_SERVER, from, "error\n%s\n", denied2);
+		Com_Printf(CON_CHANNEL_SERVER, "Game rejected a connection: %s\n", denied2);
+		SV_FreeClientScriptId(newcl);
+		return;
 	}
-	else
-	{
-		newcl->needupdate = qfalse;
-	}
-
-	if (!newcl->needupdate)
-	{
-#endif
-		// get the game a chance to reject this connection or modify the userinfo
-		denied2 = ClientConnect(clientNum, newcl->scriptId);
-
-		if (denied2)
-		{
-			NET_OutOfBandPrint(NS_SERVER, from, "error\n%s\n", denied2);
-			Com_Printf(CON_CHANNEL_SERVER, "Game rejected a connection: %s\n", denied2);
-			SV_FreeClientScriptId(newcl);
-			return;
-		}
-
-#ifdef COD4X18UPDATE
-	}
-#endif
 
 	// save the address
 	// init the netchan queue
 	Netchan_Setup(NS_SERVER, &newcl->netchan, *from, qport, newcl->unsentBuffer, sizeof(newcl->unsentBuffer),
 		newcl->fragmentBuffer, sizeof(newcl->fragmentBuffer));
 
-#ifdef COD4X18UPDATE
-
-	if (!newcl->needupdate)
+	/* Legacy clients never open the reliable side channel; netstate stays NULL
+	   for them and every transport entry point tolerates that. */
+	if (!SV_IsLegacyClient(newcl) && SV_SetupReliableMessageProtocol(newcl) == qfalse)
 	{
-#endif
-
-		if (SV_SetupReliableMessageProtocol(newcl) == qfalse)
-		{
-			NET_OutOfBandPrint(NS_SERVER, from, "error\nServer is out of memory\n");
-			Com_Printf(CON_CHANNEL_SERVER, "Server is out of memory. Refused to accept client %s\n", nick);
-			SV_FreeClientScriptId(newcl);
-			return;
-		}
-
-		Com_DPrintf(CON_CHANNEL_SERVER, "Going from CS_FREE to CS_CONNECTED for %s num %i from: %s\n", nick, clientNum,
-			NET_AdrToConnectionString(from));
-
-#ifdef COD4X18UPDATE
+		NET_OutOfBandPrint(NS_SERVER, from, "error\nServer is out of memory\n");
+		Com_Printf(CON_CHANNEL_SERVER, "Server is out of memory. Refused to accept client %s\n", nick);
+		SV_FreeClientScriptId(newcl);
+		return;
 	}
-#endif
+
+	Com_DPrintf(CON_CHANNEL_SERVER, "Going from CS_FREE to CS_CONNECTED for %s num %i from: %s\n", nick, clientNum,
+		NET_AdrToConnectionString(from));
 
 	newcl->state = CS_CONNECTED;
 	newcl->nextSnapshotTime = svs.time;
@@ -538,58 +485,12 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 
 	Q_strncpyz(newcl->xversion, Info_ValueForKey(userinfo, "xver"), sizeof(newcl->xversion));
 
-#ifdef COD4X18UPDATE
-	if (newcl->needupdate)
-	{
-		newcl->state = CS_ZOMBIE;
-		Com_DPrintf(CON_CHANNEL_SERVER, "Going from CS_FREE to CS_ZOMBIE for %s num %i from: %s\n", nick, clientNum,
-			NET_AdrToConnectionString(from));
-		newcl->nextSnapshotTime = 0x7fffffff;
-	}
-	else
-	{
-		Q_strncpyz(newcl->name, nick, sizeof(newcl->name));
-		SV_UserinfoChanged(newcl);
-	}
-
-	if (!newcl->updateconnOK && newcl->needupdate)
-	{
-		if (newcl->updateBeginTime == 0)
-		{
-			newcl->updateBeginTime = svs.time;
-		}
-		if (svs.time - newcl->updateBeginTime > 18000)
-		{
-			NET_OutOfBandPrint(NS_SERVER, from, "error\n%s\n",
-				"Can not connect to server because the update backend is unavailable\nTo join this server you have to "
-				"install the required update manually.\nPlease visit www.cod4x.ovh/clupdate");
-			Com_Printf(CON_CHANNEL_SERVER, "Rejected client %s because updatebackend is unavailable\n", nick);
-			SV_FreeClientScriptId(newcl);
-			Com_Memset(newcl, 0, sizeof(client_t));
-			return;
-		}
-		SV_ConnectWithUpdateProxy(newcl);
-		return;
-	}
-
-#else
 	Q_strncpyz(newcl->name, nick, sizeof(newcl->name));
 	SV_UserinfoChanged(newcl);
 
-#endif
-
-#ifdef COD4X18UPDATE
-
 	// send the connect packet to the client
-	if (sv_modStats->boolean && !newcl->needupdate)
-	{
-#else
-
 	if (sv_modStats->boolean)
 	{
-
-#endif
-
 		NET_OutOfBandPrint(NS_SERVER, from, "connectResponse %s", fs_gameDirVar->string);
 	}
 	else
@@ -617,8 +518,6 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 	}
 }
 
-#ifdef COD4X18UPDATE
-
 __optimize3 __regparm2 void SV_ReceiveStats(netadr_t *from, msg_t *msg)
 {
 	unsigned short qport;
@@ -644,8 +543,6 @@ __optimize3 __regparm2 void SV_ReceiveStats(netadr_t *from, msg_t *msg)
 
 	NET_OutOfBandPrint(NS_SERVER, from, "statResponse %i", var_02);
 }
-
-#endif
 
 /*
 client->receivedstats reset by SV_SpawnServer
@@ -921,13 +818,6 @@ __cdecl void SV_DropClientInternal(client_t *drop, const char *reason, qboolean 
 	{
 		return; // already dropped
 	}
-#ifdef COD4X18UPDATE
-	if (drop->needupdate)
-	{
-		drop->state = CS_ZOMBIE;
-		return;
-	}
-#endif
 
 	Q_strncpyz(clientName, drop->name, sizeof(clientName));
 
@@ -1479,6 +1369,116 @@ SV_WriteDownloadToClient
 Check to see if the client wants a file, open it if needed and start pumping the client
 Fill up msg with data
 */
+/* One block in flight at a time. CoD4X dropped the per-block buffer window the
+   stock server kept, so a retransmit re-reads from the acknowledged offset
+   rather than replaying a cached block. Slower than the stock 8-block window,
+   but it needs no extra state in client_t. */
+#define LEGACY_DOWNLOAD_BLKSIZE 1024
+#define LEGACY_DOWNLOAD_RETRANSMIT_MSEC 1000
+
+void SV_WriteDownloadToClientLegacy(client_t *cl, msg_t *msg)
+{
+	byte block[LEGACY_DOWNLOAD_BLKSIZE];
+	char errorMessage[1024];
+	int blockSize;
+
+	if (!*cl->downloadName)
+	{
+		return; // Nothing being downloaded
+	}
+
+	if (!cl->download)
+	{
+		// CVE-2006-2082: validate the download against the list of pak files
+		if (!FS_VerifyPak(cl->downloadName))
+		{
+			// will drop the client and leave it hanging on the other side. good for him
+			SV_DropClient(cl, "illegal download request");
+			return;
+		}
+
+		if (!sv_allowDownload->integer
+			|| (cl->downloadSize = FS_SV_FOpenFileRead(cl->downloadName, &cl->download)) <= 0)
+		{
+			if (!sv_allowDownload->integer)
+			{
+				Com_Printf(CON_CHANNEL_SERVER, "clientDownload: %d : \"%s\" download disabled\n", cl - svs.clients,
+					cl->downloadName);
+
+				if (sv_pure->integer)
+				{
+					Com_sprintf(errorMessage, sizeof(errorMessage), "EXE_AUTODL_SERVERDISABLED_PURE\x15%s",
+						cl->downloadName);
+				}
+				else
+				{
+					Com_sprintf(errorMessage, sizeof(errorMessage), "EXE_AUTODL_SERVERDISABLED\x15%s",
+						cl->downloadName);
+				}
+			}
+			else
+			{
+				Com_Printf(CON_CHANNEL_SERVER, "clientDownload: %d : \"%s\" file not found on server\n",
+					cl - svs.clients, cl->downloadName);
+				Com_sprintf(errorMessage, sizeof(errorMessage), "EXE_AUTODL_FILENOTONSERVER\x15%s", cl->downloadName);
+			}
+
+			// block zero with a negative size is the error channel
+			MSG_WriteByte(msg, svc_download);
+			MSG_WriteShort(msg, 0);
+			MSG_WriteLong(msg, -1);
+			MSG_WriteString(msg, errorMessage);
+
+			SV_CloseDownload(cl);
+			return;
+		}
+
+		Com_Printf(CON_CHANNEL_SERVER, "clientDownload: %d : beginning \"%s\" (%d bytes)\n", cl - svs.clients,
+			cl->downloadName, cl->downloadSize);
+	}
+
+	// current block is out and still unacknowledged, hold until the retransmit timer expires
+	if (cl->downloadXmitBlock == cl->downloadClientBlock + 1
+		&& svs.time - cl->downloadSendTime < LEGACY_DOWNLOAD_RETRANSMIT_MSEC)
+	{
+		return;
+	}
+
+	if (FS_Seek(cl->download, cl->downloadCount, FS_SEEK_SET) < 0)
+	{
+		SV_DropClient(cl, "broken download");
+		return;
+	}
+
+	blockSize = FS_Read(block, sizeof(block), cl->download);
+	if (blockSize < 0)
+	{
+		blockSize = 0;
+	}
+
+	cl->downloadBlockSize = blockSize;
+	cl->downloadEOF = (blockSize == 0) ? qtrue : qfalse;
+
+	MSG_WriteByte(msg, svc_download);
+	MSG_WriteShort(msg, cl->downloadClientBlock);
+	if (cl->downloadClientBlock == 0)
+	{
+		MSG_WriteLong(msg, cl->downloadSize); // block zero carries the file size
+	}
+	MSG_WriteShort(msg, blockSize);
+	if (blockSize)
+	{
+		MSG_WriteData(msg, block, blockSize);
+	}
+
+	cl->downloadCurrentBlock = cl->downloadClientBlock;
+	cl->downloadXmitBlock = cl->downloadClientBlock + 1;
+	cl->downloadSendTime = svs.time;
+
+	Com_DPrintf(CON_CHANNEL_SERVER, "clientDownload: %d : writing block %d with %d bytes of %d\n", cl - svs.clients,
+		cl->downloadClientBlock, blockSize, cl->downloadSize);
+}
+
 __cdecl void SV_WriteDownloadToClient(client_t *cl)
 {
 	char errorMessage[1024];
@@ -1764,18 +1764,24 @@ void SV_SendClientGameState(client_t *client)
 
 #endif
 
-	if (client->needupdate)
-	{
-		return;
-	}
-
 	while (client->state != CS_FREE && client->netchan.unsentFragments)
 	{
 		SV_Netchan_TransmitNextFragment(client);
 	}
 
-	sapi = SV_ConnectSApi(client);
-	stats = SV_RequestStats(client);
+	/* Both handshakes talk to the CoD4X client over the reliable channel. A stock
+	   client can never answer them, so waiting on it would stall the gamestate
+	   forever. Legacy clients get no SApi playerid; bans still match on IP. */
+	if (SV_IsLegacyClient(client))
+	{
+		sapi = qtrue;
+		stats = qtrue;
+	}
+	else
+	{
+		sapi = SV_ConnectSApi(client);
+		stats = SV_RequestStats(client);
+	}
 
 	if (!sapi || !stats)
 	{
@@ -1808,7 +1814,11 @@ void SV_SendClientGameState(client_t *client)
 		return;
 	}
 
-	SV_ConnectXAC(client);
+	/* The anticheat handshake rides the CoD4X client; a stock client cannot answer it. */
+	if (!SV_IsLegacyClient(client))
+	{
+		SV_ConnectXAC(client);
+	}
 
 	SV_SetServerStaticHeader();
 
@@ -1849,29 +1859,50 @@ void SV_SendClientGameState(client_t *client)
 	// the client side
 	SV_UpdateServerCommandsToClient(client, &msg);
 
-	MSG_WriteByte(&msg, svc_EOF);
-	SV_SendMessageToClient(&msg, client);
+	if (SV_IsLegacyClient(client))
+	{
+		/* Stock clients read the gamestate out of an ordinary netchan message,
+		   fragmented by Netchan_Transmit, right behind the pending server
+		   commands. There is no reliable side channel and no configdata. */
+		SV_WriteGameStateLegacy(&msg, client);
 
-	MSG_Clear(&msg);
-	MSG_WriteLong(&msg, 0);
-	MSG_WriteLong(&msg, svc_gamestate);
-	// send the gamestate
-	SV_WriteGameState(&msg, client);
+		MSG_WriteLong(&msg, client - svs.clients);
 
-	MSG_WriteLong(&msg, svs.configDataSequence);
+		// write the checksum feed
+		MSG_WriteLong(&msg, sv.checksumFeed);
 
-	MSG_WriteLong(&msg, client - svs.clients);
+		Com_DPrintf(CON_CHANNEL_SERVER, "Sending %i bytes in legacy gamestate to client: %i\n", msg.cursize,
+			client - svs.clients);
 
-	// write the checksum feed
-	MSG_WriteLong(&msg, sv.checksumFeed);
-	MSG_WriteLong(&msg, 0);
+		SV_SendMessageToClient(&msg, client);
+	}
+	else
+	{
+		MSG_WriteByte(&msg, svc_EOF);
+		SV_SendMessageToClient(&msg, client);
 
-	// NERVE - SMF - debug info
-	Com_DPrintf(CON_CHANNEL_SERVER, "Sending %i bytes in gamestate to client: %i\n", msg.cursize, client - svs.clients);
+		MSG_Clear(&msg);
+		MSG_WriteLong(&msg, 0);
+		MSG_WriteLong(&msg, svc_gamestate);
+		// send the gamestate
+		SV_WriteGameState(&msg, client);
 
-	// deliver this to the client
+		MSG_WriteLong(&msg, svs.configDataSequence);
 
-	SV_SendReliableServerCommand(client, &msg);
+		MSG_WriteLong(&msg, client - svs.clients);
+
+		// write the checksum feed
+		MSG_WriteLong(&msg, sv.checksumFeed);
+		MSG_WriteLong(&msg, 0);
+
+		// NERVE - SMF - debug info
+		Com_DPrintf(CON_CHANNEL_SERVER, "Sending %i bytes in gamestate to client: %i\n", msg.cursize,
+			client - svs.clients);
+
+		// deliver this to the client
+
+		SV_SendReliableServerCommand(client, &msg);
+	}
 
 	SV_GetServerStaticHeader();
 
@@ -2142,11 +2173,14 @@ void __cdecl SV_VerifyPaks_f(client_t *cl)
 			pArg++; // Skip L
 			cl->localization = atoi(pArg);
 			// #if(10*(SYS_COMMONVERSION) >= 200)
-			pArg = SV_Cmd_Argv(nCurArg++);
-			int clserverid = atoi(pArg);
-			if ((clserverid & 0xffffff00) != (sv.start_frameTime & 0xffffff00))
+			if (!SV_IsLegacyClient(cl))
 			{
-				return;
+				pArg = SV_Cmd_Argv(nCurArg++);
+				int clserverid = atoi(pArg);
+				if ((clserverid & 0xffffff00) != (sv.start_frameTime & 0xffffff00))
+				{
+					return;
+				}
 			}
 			// #endif
 			// Parsing the PAK checksums
@@ -2253,11 +2287,39 @@ static void SV_ResetPureClient_f(client_t *cl)
 	cl->pureAuthentic = 0;
 }
 
+/* Stock clients drive their own downloads over the ordinary netchan: they ask
+   with "download <file>", acknowledge each block with "nextdl <block>" and
+   finish with "donedl". CoD4X clients use SV_BeginDownloadX_f over the reliable
+   transport instead and never send these, so the handlers refuse them. */
+void SV_BeginDownload_f(client_t *cl)
+{
+	if (!SV_IsLegacyClient(cl))
+	{
+		return;
+	}
+
+	SV_CloseDownload(cl);
+
+	Q_strncpyz(cl->downloadName, SV_Cmd_Argv(1), sizeof(cl->downloadName));
+
+	cl->downloadSize = 0;
+	cl->downloadCount = 0;
+	cl->downloadClientBlock = 0;
+	cl->downloadCurrentBlock = 0;
+	cl->downloadXmitBlock = 0;
+	cl->downloadBlockSize = 0;
+	cl->downloadBeginOffset = 0;
+	cl->downloadNumBytes = 0;
+	cl->downloadEOF = qfalse;
+	cl->downloadSendTime = 0;
+}
+
 /*
 SV_StopDownload_f
 
 Abort a download if in progress
 */
+/* Shared with SV_ExecuteDownloadCmd, so this must stay protocol agnostic. */
 void SV_StopDownload_f(client_t *cl)
 {
 	if (*cl->downloadName)
@@ -2275,6 +2337,7 @@ SV_DoneDownload_f
 
 Downloads are finished
 */
+/* Shared with SV_ExecuteDownloadCmd, so this must stay protocol agnostic. */
 void SV_DoneDownload_f(client_t *cl)
 {
 	Com_DPrintf(CON_CHANNEL_SERVER, "clientDownload: %s Done\n", cl->name);
@@ -2292,9 +2355,14 @@ the same as cl->downloadClientBlock
 */
 void SV_NextDownload_f(client_t *cl)
 {
-	return;
+	int block;
 
-	int block = atoi(SV_Cmd_Argv(1));
+	if (!SV_IsLegacyClient(cl) || !*cl->downloadName)
+	{
+		return;
+	}
+
+	block = atoi(SV_Cmd_Argv(1));
 
 	if (block == cl->downloadClientBlock)
 	{
@@ -2310,8 +2378,9 @@ void SV_NextDownload_f(client_t *cl)
 			return;
 		}
 
+		cl->downloadCount += cl->downloadBlockSize;
+		cl->downloadClientBlock++;
 		cl->downloadSendTime = svs.time;
-		//		cl->downloadClientBlock++;
 		return;
 	}
 	// We aren't getting an acknowledge for the correct block, drop the client
@@ -2328,7 +2397,14 @@ the same as cl->downloadClientBlock
 */
 void SV_RetransmitDownload_f(client_t *cl)
 {
-	int block = atoi(SV_Cmd_Argv(1));
+	int block;
+
+	if (!SV_IsLegacyClient(cl))
+	{
+		return;
+	}
+
+	block = atoi(SV_Cmd_Argv(1));
 
 	if (block == cl->downloadClientBlock)
 	{
@@ -2559,13 +2635,11 @@ typedef struct
 
 static ucmd_t ucmds[] = { { "userinfo", SV_UpdateUserinfo_f, 0 }, { "disconnect", SV_Disconnect_f, 1 },
 	{ "cp", SV_VerifyPaks_f, 0 }, { "vdr", SV_ResetPureClient_f, 0 },
+	/* Stock download protocol. Every handler refuses non-legacy clients, which
+	   use SV_BeginDownloadX_f over the reliable transport instead. */
+	{ "download", SV_BeginDownload_f, 1 }, { "nextdl", SV_NextDownload_f, 1 }, { "stopdl", SV_StopDownload_f, 1 },
+	{ "donedl", SV_DoneDownload_f, 1 }, { "retransdl", SV_RetransmitDownload_f, 1 },
 	/*
-		{"download", SV_BeginDownload_f, 0},
-		{"nextdl", SV_NextDownload_f, 0},
-		{"stopdl", SV_StopDownload_f, 0},
-		{"donedl", SV_DoneDownload_f, 0},
-		{"retransdl", SV_RetransmitDownload_f, 0},
-
 		{"wwwdl", SV_WWWDownload_f, 0},
 	*/
 	{ "muteplayer", SV_MutePlayer_f, 0 }, { "unmuteplayer", SV_UnmutePlayer_f, 0 }, { NULL, NULL, 0 } };
@@ -2807,6 +2881,11 @@ void SV_ReceiveReliableMessages(client_t *client)
 {
 	int messagesize;
 
+	if (client->reliablemsg.netstate == NULL)
+	{
+		return; // legacy client, no reliable side channel
+	}
+
 	msg_t *msg = &client->reliablemsg.recvbuffer;
 
 	if (msg->maxsize < MAX_FRAGMENT_SIZE)
@@ -2955,7 +3034,12 @@ void SV_SetClientStat(int clientNum, signed int index, int value)
 	{
 		return;
 	}
-	SV_SendServerCommandNoLoss(cl, "%c %i %i", 'N', index, value);
+	/* The stat stays server side either way; only the CoD4X client understands
+	   the 'N' push, so stock clients are not told about it. */
+	if (!SV_IsLegacyClient(cl))
+	{
+		SV_SendServerCommandNoLoss(cl, "%c %i %i", 'N', index, value);
+	}
 }
 
 int SV_GetClientStat(int clientNum, signed int index)

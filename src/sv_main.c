@@ -109,8 +109,8 @@ cvar_t *sv_debugRate;
 cvar_t *sv_debugReliableCmds;
 cvar_t *sv_clientArchive;
 cvar_t *sv_shownet;
-cvar_t *sv_updatebackendname;
 cvar_t *sv_legacymode;
+cvar_t *sv_allowLegacyClients;
 cvar_t *sv_steamgroup;
 cvar_t *sv_authtoken;
 cvar_t *sv_disableChat;
@@ -1525,284 +1525,6 @@ __optimize3 __regparm2 static void SVC_RemoteCommand(netadr_t *from, msg_t *msg)
 	Com_EndRedirect();
 }
 
-#ifdef COD4X18UPDATE
-	#define UPDATE_PROXYSERVER_NAME "cod4update.cod4x.ovh"
-	#define UPDATE_PROXYSERVER_PORT_RELEASE 27953
-	#define UPDATE_PROXYSERVER_PORT_BETA 27954
-	#define UPDATE_PROXYSERVER_PORT_RC 27955
-
-	#ifdef RELEASE_CANDIDATE
-
-		#define UPDATE_PROXYSERVER_PORT UPDATE_PROXYSERVER_PORT_RC
-
-	#else
-
-		#ifndef BETA_RELEASE
-			#define UPDATE_PROXYSERVER_PORT UPDATE_PROXYSERVER_PORT_RELEASE
-		#else
-			#define UPDATE_PROXYSERVER_PORT UPDATE_PROXYSERVER_PORT_BETA
-		#endif
-	#endif
-
-typedef enum
-{
-	UPDCONN_CHALLENGING,
-	UPDCONN_CONNECT
-} update_connState_t;
-
-typedef struct
-{
-	update_connState_t state;
-	int mychallenge;
-	int serverchallenge;
-	char authkey[128];
-	netadr_t updateserveradr;
-	unsigned int lastsenttime;
-	unsigned int lastseentime;
-} update_connection_t;
-
-update_connection_t update_connection;
-
-void SV_UpdateProxyUpdateBadChallenge(netadr_t *from)
-{
-	int mychallenge;
-
-	if (SV_Cmd_Argc() < 2)
-	{
-		return;
-	}
-	update_connection.lastseentime = Sys_Seconds();
-	mychallenge = atoi(SV_Cmd_Argv(1));
-
-	if (mychallenge != update_connection.mychallenge)
-	{
-		return;
-	}
-
-	if (!NET_CompareAdr(from, &update_connection.updateserveradr))
-	{
-		Com_Printf(CON_CHANNEL_SERVER, "SV_UpdateProxyUpdateBadChallenge: Packet not from updateserver\n");
-		return;
-	}
-
-	update_connection.state = UPDCONN_CHALLENGING;
-	Com_Printf(CON_CHANNEL_SERVER, "SV_UpdateProxyUpdateBadChallenge: Will start challenging\n");
-}
-
-void SV_UpdateProxyChallengeResponse(netadr_t *from)
-{
-	int mychallenge;
-	int svchallenge;
-
-	if (SV_Cmd_Argc() < 3)
-	{
-		return;
-	}
-
-	update_connection.lastseentime = Sys_Seconds();
-
-	mychallenge = atoi(SV_Cmd_Argv(2));
-
-	if (mychallenge != update_connection.mychallenge)
-	{
-		Com_Printf(CON_CHANNEL_SERVER, "SV_UpdateProxyChallengeResponse: Bad challenge\n");
-		return;
-	}
-
-	if (!NET_CompareAdr(from, &update_connection.updateserveradr))
-	{
-		Com_Printf(CON_CHANNEL_SERVER, "SV_UpdateProxyChallengeResponse: Packet not from updateserver\n");
-		return;
-	}
-
-	svchallenge = atoi(SV_Cmd_Argv(1));
-	update_connection.serverchallenge = svchallenge;
-	update_connection.state = UPDCONN_CONNECT;
-}
-
-void SV_UpdateProxyConnectResponse(netadr_t *from)
-{
-	int mychallenge;
-	int clchallenge;
-	int i;
-	unsigned short qport;
-	client_t *cl;
-
-	if (SV_Cmd_Argc() < 4)
-	{
-		return;
-	}
-	mychallenge = atoi(SV_Cmd_Argv(1));
-
-	update_connection.lastseentime = Sys_Seconds();
-
-	if (mychallenge != update_connection.mychallenge)
-	{
-		//        Com_Printf(CON_CHANNEL_SERVER,"SV_UpdateProxyConnectResponse: Bad challenge\n");
-		return;
-	}
-
-	if (!NET_CompareAdr(from, &update_connection.updateserveradr))
-	{
-		//        Com_Printf(CON_CHANNEL_SERVER,"SV_UpdateProxyConnectResponse: Packet not from updateserver\n");
-		return;
-	}
-
-	clchallenge = atoi(SV_Cmd_Argv(2));
-	qport = atoi(SV_Cmd_Argv(3));
-
-	for (cl = svs.clients, i = 0; i < sv_maxclients->integer; ++i, ++cl)
-	{
-		if (cl->state == CS_ZOMBIE && cl->challenge == clchallenge && cl->netchan.qport == qport)
-		{
-			break;
-		}
-	}
-
-	if (i == sv_maxclients->integer)
-	{
-		//        Com_Printf(CON_CHANNEL_SERVER,"SV_UpdateProxyConnectResponse: Bad challenge for client\n");
-		return;
-	}
-
-	cl->updateconnOK = qtrue;
-}
-
-void SV_ReceiveFromUpdateProxy(msg_t *msg)
-{
-	int i;
-	client_t *cl;
-
-	/* Callenge 0x4 */
-	int clchallenge = MSG_ReadLong(msg);
-	/* sequence 0x8 */
-	int sequence = MSG_ReadLong(msg);
-	/* qport 0xC */
-	unsigned short qport = MSG_ReadShort(msg);
-
-	update_connection.lastseentime = Sys_Seconds();
-
-	/* data 0xE */
-	for (cl = svs.clients, i = 0; i < sv_maxclients->integer; ++i, ++cl)
-	{
-		if (cl->state == CS_ZOMBIE && cl->challenge == clchallenge && cl->netchan.qport == qport)
-		{
-			break;
-		}
-	}
-
-	if (i == sv_maxclients->integer)
-	{
-		//        Com_Printf(CON_CHANNEL_SERVER,"SV_ReceiveFromUpdateProxy: Received packet for bad client\n");
-		NET_OutOfBandPrint(NS_SERVER, &update_connection.updateserveradr, "disconnect %d %d",
-			update_connection.serverchallenge, clchallenge);
-		return;
-	}
-
-	*(uint32_t *)&msg->data[10] = sequence;
-	NET_SendPacket(NS_SERVER, msg->cursize - 10, msg->data + 10, &svs.clients[i].netchan.remoteAddress);
-}
-
-void SV_PassToUpdateProxy(msg_t *msg, client_t *cl)
-{
-	byte outbuf[MAX_MSGLEN];
-
-	msg_t outmsg;
-
-	MSG_Init(&outmsg, outbuf, sizeof(outbuf));
-
-	/* Update packet header */
-	MSG_WriteLong(&outmsg, 0xfffffffe);
-	/* client challenge */
-	MSG_WriteLong(&outmsg, cl->challenge);
-	MSG_WriteData(&outmsg, msg->data, msg->cursize);
-
-	NET_SendPacket(NS_SERVER, outmsg.cursize, outmsg.data, &update_connection.updateserveradr);
-}
-
-void SV_ConnectWithUpdateProxy(client_t *cl)
-{
-	int res;
-	char info[MAX_STRING_CHARS];
-	mvabuf;
-	netadr_t *defif;
-
-	switch (update_connection.state)
-	{
-	case UPDCONN_CHALLENGING:
-
-		if (update_connection.mychallenge == 0)
-		{
-			Com_RandomBytes((byte *)&update_connection.mychallenge, sizeof(update_connection.mychallenge));
-		}
-
-		if (update_connection.updateserveradr.type == NA_BAD || sv_updatebackendname->modified)
-		{
-			if (!sv_updatebackendname->string[0])
-			{
-				Com_Printf(CON_CHANNEL_SERVER, "Cvar sv_updatebackendname is empty. Can not update cod4 client.\n");
-				return;
-			}
-
-			Com_Printf(CON_CHANNEL_SERVER, "Resolving %s\n", sv_updatebackendname->string);
-			Cvar_ClearModified(sv_updatebackendname);
-			res = NET_StringToAdr(sv_updatebackendname->string, &update_connection.updateserveradr, NA_IP);
-			defif = NET_GetDefaultCommunicationSocket(NA_IP);
-			if (defif == NULL)
-			{
-				Com_Printf(CON_CHANNEL_SERVER, "Missing outgoing interface. Can not send data to updateserver\n");
-				update_connection.updateserveradr.type = NA_BAD;
-				return;
-			}
-			update_connection.updateserveradr.sock = defif->sock;
-			if (res == 2)
-			{
-				// if no port was specified, use the default master port
-				update_connection.updateserveradr.port = BigShort(UPDATE_PROXYSERVER_PORT);
-			}
-			if (res)
-			{
-				Com_Printf(CON_CHANNEL_SERVER, "%s resolved to %s\n", sv_updatebackendname->string,
-					NET_AdrToString(&update_connection.updateserveradr));
-			}
-			else
-			{
-				Com_Printf(CON_CHANNEL_SERVER, "%s has no IPv4 address.\n", sv_updatebackendname->string);
-				return;
-			}
-		}
-
-		if (update_connection.updateserveradr.type == NA_IP)
-		{
-			NET_OutOfBandPrint(NS_SERVER, &update_connection.updateserveradr, "updgetchallenge %d %s",
-				update_connection.mychallenge, "noguid");
-			update_connection.lastsenttime = Sys_Seconds();
-		}
-		return;
-
-	case UPDCONN_CONNECT:
-		if (sv_updatebackendname->modified)
-		{
-			update_connection.state = UPDCONN_CHALLENGING;
-			return;
-		}
-		info[0] = '\0';
-
-		Info_SetValueForKey(info, "challenge", va("%d", update_connection.serverchallenge));
-		Info_SetValueForKey(info, "rtnchallenge", va("%d", update_connection.mychallenge));
-		Info_SetValueForKey(info, "clchallenge", va("%d", cl->challenge));
-		Info_SetValueForKey(info, "name", cl->name);
-		Info_SetValueForKey(info, "clremote", NET_AdrToString(&cl->netchan.remoteAddress));
-		Info_SetValueForKey(info, "qport", va("%hi", cl->netchan.qport));
-		Info_SetValueForKey(info, "protocol", va("%hi", cl->protocol));
-
-		NET_OutOfBandPrint(NS_SERVER, &update_connection.updateserveradr, "updconnect \"%s\"", info);
-		update_connection.lastsenttime = Sys_Seconds();
-		return;
-	}
-}
-
-#endif
 
 void SV_HostMigrationReadPacket(netadr_t *from, msg_t *msg);
 
@@ -1844,13 +1566,10 @@ __optimize3 __regparm2 void SV_ConnectionlessPacket(netadr_t *from, msg_t *msg)
 	else if (!Q_stricmp(c, "connect"))
 	{
 		SV_DirectConnect(from);
-#ifdef COD4X18UPDATE
 	}
 	else if (!Q_stricmp(c, "stats"))
 	{
 		SV_ReceiveStats(from, msg);
-
-#endif
 	}
 	else if (!Q_stricmp(c, "rcon"))
 	{
@@ -1859,22 +1578,6 @@ __optimize3 __regparm2 void SV_ConnectionlessPacket(netadr_t *from, msg_t *msg)
 	else if (!Q_stricmp(c, "getchallenge"))
 	{
 		SV_GetChallenge(from);
-
-#ifdef COD4X18UPDATE
-	}
-	else if (!Q_stricmp(c, "updbadchallenge"))
-	{
-		SV_UpdateProxyUpdateBadChallenge(from);
-	}
-	else if (!Q_stricmp(c, "updchallengeResponse"))
-	{
-		SV_UpdateProxyChallengeResponse(from);
-	}
-	else if (!Q_stricmp(c, "updconnectResponse"))
-	{
-		SV_UpdateProxyConnectResponse(from);
-
-#endif
 	}
 	else if (!Q_stricmp(c, "HostMigrationPacket"))
 	{
@@ -1940,13 +1643,6 @@ __optimize3 __regparm2 void SV_PacketEvent(netadr_t *from, msg_t *msg)
 	// read the qport out of the message so we can fix up
 	// stupid address translating routers
 
-#ifdef COD4X18UPDATE
-	if (seq == 0xfffffffe)
-	{
-		SV_ReceiveFromUpdateProxy(msg);
-		return;
-	}
-#endif
 	qport = MSG_ReadShort(msg); // & 0xffff;
 
 	// find which client the message is from
@@ -1965,14 +1661,6 @@ __optimize3 __regparm2 void SV_PacketEvent(netadr_t *from, msg_t *msg)
 		ReliableMessagesReceiveNextFragment(cl->reliablemsg.netstate, msg);
 		return;
 	}
-#ifdef COD4X18UPDATE
-	if (cl->needupdate && cl->updateconnOK)
-	{
-		cl->lastPacketTime = svs.time;
-		SV_PassToUpdateProxy(msg, cl);
-		return;
-	}
-#endif
 	// make sure it is a valid, in sequence packet
 	if (!Netchan_Process(&cl->netchan, msg))
 	{
@@ -2004,13 +1692,15 @@ __optimize3 __regparm2 void SV_PacketEvent(netadr_t *from, msg_t *msg)
 		return;
 	}
 
-	// New info for configdata
-
-	csack = MSG_ReadLong(msg);
-	if (csack > cl->configDataAcknowledge)
-	{ // csack can be lower than cl->configDataAcknowledge in case when server wrote gamestate the client has not yet
-	  // parsed. Ignoring this data here.
-		cl->configDataAcknowledge = csack;
+	// New info for configdata. Legacy clients have no such field in their header.
+	if (!SV_IsLegacyClient(cl))
+	{
+		csack = MSG_ReadLong(msg);
+		if (csack > cl->configDataAcknowledge)
+		{ // csack can be lower than cl->configDataAcknowledge in case when server wrote gamestate the client has not
+		  // yet parsed. Ignoring this data here.
+			cl->configDataAcknowledge = csack;
+		}
 	}
 
 	SV_Netchan_Decode(cl, &msg->data[msg->readcount], msg->cursize - msg->readcount);
@@ -3058,6 +2748,8 @@ void SV_InitCvarsOnce(void)
 	sv_killserver = Cvar_RegisterBool("sv_killserver", qfalse, CVAR_ROM, "True if the server getting killed");
 	sv_protocol =
 		Cvar_RegisterInt("protocol", PROTOCOL_VERSION, PROTOCOL_VERSION, PROTOCOL_VERSION, 0x44, "Protocol version");
+	sv_allowLegacyClients = Cvar_RegisterBool("sv_allowLegacyClients", qfalse, CVAR_ARCHIVE,
+		"Accept stock 1.7/1.7a clients and serve them the legacy wire format");
 	sv_privateClients = Cvar_RegisterInt("sv_privateClients", 0, 0, 64, 4,
 		"Maximum number of private clients allowed onto this server");
 	sv_hostname = Cvar_RegisterString("sv_hostname", "^5CoD4Host", 5, "Host name of the server");
@@ -3190,8 +2882,6 @@ void SV_InitCvarsOnce(void)
 	sv_clientArchive = Cvar_RegisterBool("sv_clientArchive", qtrue, 0,
 		"Have the clients archive data to save bandwidth on the server");
 	sv_shownet = Cvar_RegisterInt("sv_shownet", -1, -1, 63, 0, "Enable network debugging for a client");
-	sv_updatebackendname = Cvar_RegisterString("sv_updatebackendname", UPDATE_PROXYSERVER_NAME, CVAR_ARCHIVE,
-		"Hostname for the used clientupdatebackend");
 	sv_legacymode = Cvar_RegisterBool("sv_legacyguidmode", qfalse, CVAR_ARCHIVE,
 		"outputs pbguid on status command and games_mp.log");
 	sv_authtoken = Cvar_RegisterString("sv_authtoken", "", 0,
@@ -3329,6 +3019,76 @@ typedef struct
 	int unk1;
 	int unk2;
 } constConfigstring_t;
+
+qboolean SV_IsLegacyClient(const client_t *cl)
+{
+	return (cl != NULL && cl->legacyClient) ? qtrue : qfalse;
+}
+
+/* Stock 1.7/1.7a clients. Everything CoD4X added to the gamestate is left out:
+   configstrings carry their own opcode and a 16 bit index instead of being
+   packed behind a single opcode and a count, and no svc_configclient blocks are
+   emitted. Indices at or above MAX_LEGACY_CONFIGSTRINGS would run off the end of
+   the client's table, so they are dropped. */
+void SV_WriteGameStateLegacy(msg_t *msg, client_t *cl)
+{
+	int i, clnum, dropped;
+	entityState_t nullstate, *base;
+	snapshotInfo_t snapInfo;
+	unsigned short strindex;
+
+	MSG_WriteByte(msg, svc_gamestate);
+	MSG_WriteLong(msg, cl->reliableSequence);
+
+	for (i = 0, dropped = 0; i < MAX_CONFIGSTRINGS; i++)
+	{
+		strindex = SV_GetConfigstringIndex(i);
+
+		if (strindex == 0)
+		{
+			continue;
+		}
+		if (i >= MAX_LEGACY_CONFIGSTRINGS)
+		{
+			dropped++;
+			continue;
+		}
+		MSG_WriteByte(msg, svc_configstring);
+		MSG_WriteShort(msg, i);
+		MSG_WriteBigString(msg, SL_ConvertToString(strindex));
+	}
+
+	if (dropped)
+	{
+		Com_PrintWarning(CON_CHANNEL_SERVER,
+			"Dropped %d configstring(s) above index %d for legacy client %s. Assets loaded into the extended pool are "
+			"invisible to stock 1.7 clients.\n",
+			dropped, MAX_LEGACY_CONFIGSTRINGS, cl->name);
+	}
+
+	Com_Memset(&nullstate, 0, sizeof(nullstate));
+	clnum = cl - svs.clients;
+
+	for (i = 0; i < MAX_GENTITIES; i++)
+	{
+		base = &sv.svEntities[i].baseline.s;
+		if (!base->number)
+		{
+			continue;
+		}
+		MSG_WriteByte(msg, svc_baseline);
+
+		snapInfo.clnum = clnum;
+		snapInfo.client = NULL;
+		snapInfo.snapshotDeltaTime = 0xFFFFFFFF;
+		snapInfo.fromBaseline = qtrue;
+		snapInfo.archived = 0;
+
+		MSG_WriteDeltaEntity(&snapInfo, msg, 0, &nullstate, base, qtrue);
+	}
+
+	MSG_WriteByte(msg, svc_EOF);
+}
 
 /*
 
@@ -3875,7 +3635,6 @@ for a few seconds to make sure any final reliable message gets resent
 if necessary
 */
 #define SV_MAXCS_CONNECTEDTIME 16
-#define MAX_UPDATETIMEOUT 30000
 
 void SV_CheckTimeouts(void)
 {
@@ -3902,11 +3661,6 @@ void SV_CheckTimeouts(void)
 		if (cl->state == CS_ZOMBIE && cl->lastPacketTime < zombiepoint)
 		{
 			// using the client id cause the cl->name is empty at this point
-			if (cl->needupdate && cl->lastPacketTime + MAX_UPDATETIMEOUT > svs.time)
-			{
-				return;
-			}
-
 			Com_DPrintf(CON_CHANNEL_SERVER, "Going from CS_ZOMBIE to CS_FREE for client %d\n", i);
 			cl->state = CS_FREE; // can now be reused
 			continue;

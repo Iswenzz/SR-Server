@@ -1087,9 +1087,6 @@ typedef struct client_s
 	unsigned int connectedTime;
 	char xversion[8];
 	int protocol;
-	qboolean needupdate;
-	qboolean updateconnOK;
-	unsigned int updateBeginTime;
 	byte reliablemsg[40 + 44];
 	uint64_t steamid;
 	uint64_t steamidPending;
@@ -1173,6 +1170,7 @@ typedef struct client_s
 	statData_t stats;
 	int localization; // loc_language
 	qboolean lockedout;
+	qboolean legacyClient;
 } client_t;
 
 typedef struct

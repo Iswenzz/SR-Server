@@ -332,6 +332,10 @@ void ReliableMessagesTransmitNextFragment(netreliablemsg_t *chan)
 // Assuming you have already read the port
 void ReliableMessagesReceiveNextFragment(netreliablemsg_t *chan, msg_t *buf)
 {
+	if (chan == NULL)
+	{
+		return;
+	}
 	int sequence, acknowledge;
 	unsigned __attribute__((__unused__)) int windowsize;
 	unsigned int numselectiveack, fragmentsize, length, startack;
@@ -447,6 +451,10 @@ void ReliableMessagesReceiveNextFragment(netreliablemsg_t *chan, msg_t *buf)
 
 int ReliableMessageReceive(netreliablemsg_t *chan, byte *outdata, int len)
 {
+	if (chan == NULL)
+	{
+		return 0;
+	}
 	int hisequence, losequence, wlen;
 	int i, index, writepos, availablefragments;
 
@@ -539,6 +547,10 @@ int ReliableMessageReceiveSingleFragment(netreliablemsg_t *chan, byte *outdata, 
 
 int ReliableMessageSend(netreliablemsg_t *chan, byte *indata, int len)
 {
+	if (chan == NULL)
+	{
+		return 0;
+	}
 	int usedfragmentcnt, freefragmentcnt, newbuflen, newfreefragmentcnt;
 	int sentlen;
 	int i, index, slen;
@@ -748,6 +760,10 @@ void ReliableMessageGetTestData(netreliablemsg_t *chan)
 
 void ReliableMessagesFrame(netreliablemsg_t *chan, int now)
 {
+	if (chan == NULL)
+	{
+		return;
+	}
 	int lastTime;
 	int elapsed;
 	int millipackets;
@@ -797,10 +813,18 @@ void ReliableMessagesFrame(netreliablemsg_t *chan, int now)
 
 int ReliableMessageGetSendBufferSize(netreliablemsg_t *chan)
 {
+	if (chan == NULL)
+	{
+		return 0;
+	}
 	return (chan->txwindow.sequence - chan->txwindow.acknowledge) * MAX_FRAGMENT_SIZE;
 }
 
 int ReliableMessageGetDataSendWindowSize(netreliablemsg_t *chan)
 {
+	if (chan == NULL)
+	{
+		return 0;
+	}
 	return chan->txwindow.windowsize * MAX_FRAGMENT_SIZE;
 }

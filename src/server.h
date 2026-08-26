@@ -126,9 +126,6 @@ struct client_s
 	unsigned int connectedTime;
 	char xversion[8];
 	int protocol;
-	qboolean needupdate;
-	qboolean updateconnOK;
-	unsigned int updateBeginTime;
 	reliableprotocol_t reliablemsg;
 	msg_t incommingrmsg;
 	uint64_t steamid;
@@ -213,6 +210,10 @@ struct client_s
 	stats_t stats;
 	int localization; // loc_language
 	qboolean lockedout;
+	/* Appended, not inserted: plugins/declarations.h mirrors this struct and
+	   prebuilt plugins index it by offset. Latched at connect time so that
+	   sv_allowLegacyClients cannot switch a live client's wire format. */
+	qboolean legacyClient;
 }; // 0x0a563c
 
 typedef struct client_s client_t;
@@ -535,6 +536,7 @@ struct trace_s;
 
 extern cvar_t *sv_rconPassword;
 extern cvar_t *sv_protocol;
+extern cvar_t *sv_allowLegacyClients;
 extern cvar_t *sv_padPackets;
 extern cvar_t *sv_demoCompletedCmd;
 extern cvar_t *sv_screenshotArrivedCmd;
@@ -623,6 +625,10 @@ extern "C"
 
 	void SV_WriteGameState(msg_t *, client_t *);
 
+	void SV_WriteGameStateLegacy(msg_t *, client_t *);
+
+	qboolean SV_IsLegacyClient(const client_t *cl);
+
 	void SV_GetServerStaticHeader(void);
 
 	void SV_ShowClientUnAckCommands(client_t *client);
@@ -663,6 +669,8 @@ extern "C"
 	__optimize3 __regparm3 void SV_UserMove(client_t *cl, msg_t *msg, qboolean delta);
 	void SV_ClientEnterWorld(client_t *client, usercmd_t *cmd);
 	void SV_WriteDownloadToClient(client_t *cl);
+
+	void SV_WriteDownloadToClientLegacy(client_t *cl, msg_t *msg);
 	void SV_SendClientGameState(client_t *client);
 
 	void SV_Netchan_Decode(client_t *client, byte *data, int remaining);
@@ -828,9 +836,6 @@ extern "C"
 
 	int SV_GameGetMaxClients();
 	qboolean SV_FileStillActive(const char *name);
-	#ifdef COD4X18UPDATE
-	void SV_ConnectWithUpdateProxy(client_t *cl);
-	#endif
 	void SV_WriteChecksumInfo(msg_t *msg, const char *filename);
 	void __cdecl SV_DObjDumpInfo(gentity_t *ent);
 	int __cdecl SV_DObjExists(gentity_t *ent);

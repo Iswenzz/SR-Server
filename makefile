@@ -38,7 +38,7 @@ WIN_LLIBS=tomcrypt mbedtls mbedcrypto mbedx509 ws2_32 wsock32 iphlpapi gdi32 win
 LINUX_LFLAGS=-m32 -g -static-libgcc -rdynamic -Wl,-rpath=./
 LINUX_LLIBS=tomcrypt mbedtls mbedcrypto mbedx509 dl pthread m stdc++ $(SR_LLIBS)
 BSD_LLIBS=tomcrypt mbedtls mbedcrypto mbedx509 pthread m execinfo stdc++ $(SR_LLIBS)
-COD4X_DEFINES=COD4X18UPDATE BUILD_NUMBER=$(BUILD_NUMBER) BUILD_BRANCH=$(BUILD_BRANCH) BUILD_REVISION=$(BUILD_REVISION)
+COD4X_DEFINES=BUILD_NUMBER=$(BUILD_NUMBER) BUILD_BRANCH=$(BUILD_BRANCH) BUILD_REVISION=$(BUILD_REVISION)
 
 ifeq ($(DEBUG), true)
 DCFLAGS=-fno-pie -O0 -g

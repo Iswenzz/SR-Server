@@ -17,8 +17,6 @@ target_sources(SR PRIVATE
 	Macros.hpp)
 
 target_precompile_headers(SR PUBLIC Base.hpp Common.hpp)
-target_compile_definitions(SR PUBLIC COD4X18UPDATE)
-
 target_link_libraries(SR PUBLIC
 	CoD4DM1::CoD4DM1
 	glm::glm

@@ -24,6 +24,15 @@
 
 #define LEGACY_PROTOCOL_VERSION 6
 
+/* Protocols at or below this speak the stock 1.7/1.7a wire format: no reliable
+   transport, no configclient/configdata, and no configDataAcknowledge in the
+   packet header. Matches the <= 7 test the update proxy has always used. */
+#define MAX_LEGACY_PROTOCOL_VERSION 7
+#define IS_LEGACY_PROTOCOL(v) ((v) <= MAX_LEGACY_PROTOCOL_VERSION)
+
+/* Stock clients size their configstring table for 1.7; CoD4X doubled it. */
+#define MAX_LEGACY_CONFIGSTRINGS 2442
+
 #define MAX_MSGLEN 0x20000
 
 // the svc_strings[] array in cl_parse.c should mirror this
