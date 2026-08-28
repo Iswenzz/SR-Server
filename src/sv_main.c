@@ -1525,7 +1525,6 @@ __optimize3 __regparm2 static void SVC_RemoteCommand(netadr_t *from, msg_t *msg)
 	Com_EndRedirect();
 }
 
-
 void SV_HostMigrationReadPacket(netadr_t *from, msg_t *msg);
 
 /*
@@ -2748,8 +2747,8 @@ void SV_InitCvarsOnce(void)
 	sv_killserver = Cvar_RegisterBool("sv_killserver", qfalse, CVAR_ROM, "True if the server getting killed");
 	sv_protocol =
 		Cvar_RegisterInt("protocol", PROTOCOL_VERSION, PROTOCOL_VERSION, PROTOCOL_VERSION, 0x44, "Protocol version");
-	sv_allowLegacyClients = Cvar_RegisterBool("sv_allowLegacyClients", qfalse, CVAR_ARCHIVE,
-		"Accept stock 1.7/1.7a clients and serve them the legacy wire format");
+	sv_allowLegacyClients = Cvar_RegisterBool("sv_allowLegacyClients", qtrue, CVAR_ARCHIVE,
+		"Accept stock 1.7 clients and serve them the legacy wire format");
 	sv_privateClients = Cvar_RegisterInt("sv_privateClients", 0, 0, 64, 4,
 		"Maximum number of private clients allowed onto this server");
 	sv_hostname = Cvar_RegisterString("sv_hostname", "^5CoD4Host", 5, "Host name of the server");
@@ -3025,7 +3024,7 @@ qboolean SV_IsLegacyClient(const client_t *cl)
 	return (cl != NULL && cl->legacyClient) ? qtrue : qfalse;
 }
 
-/* Stock 1.7/1.7a clients. Everything CoD4X added to the gamestate is left out:
+/* Stock 1.7 clients. Everything CoD4X added to the gamestate is left out:
    configstrings carry their own opcode and a 16 bit index instead of being
    packed behind a single opcode and a count, and no svc_configclient blocks are
    emitted. Indices at or above MAX_LEGACY_CONFIGSTRINGS would run off the end of

@@ -10,7 +10,7 @@ A modification of the Call of Duty 4: Modern Warfare server. CoD4x fixes several
 * Reliable player identification
 * Pbss-like screenshot feature
 * Backwards compatibility with 1.7 and 1.7a servers
-* Optional support for stock 1.7/1.7a clients alongside CoD4X clients (`sv_allowLegacyClients`)
+* Support for stock 1.7 clients alongside CoD4X clients
 * A new masterserver for when the official one is down
 * gsclib standard library for the GSC scripting language
 * Extended player movements including: 190, 210, Q3, Q3CPM, CS

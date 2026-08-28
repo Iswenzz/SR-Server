@@ -210,9 +210,6 @@ struct client_s
 	stats_t stats;
 	int localization; // loc_language
 	qboolean lockedout;
-	/* Appended, not inserted: plugins/declarations.h mirrors this struct and
-	   prebuilt plugins index it by offset. Latched at connect time so that
-	   sv_allowLegacyClients cannot switch a live client's wire format. */
 	qboolean legacyClient;
 }; // 0x0a563c
 

@@ -24,7 +24,7 @@
 
 #define LEGACY_PROTOCOL_VERSION 6
 
-/* Protocols at or below this speak the stock 1.7/1.7a wire format: no reliable
+/* Protocols at or below this speak the stock 1.7 wire format: no reliable
    transport, no configclient/configdata, and no configDataAcknowledge in the
    packet header. Matches the <= 7 test the update proxy has always used. */
 #define MAX_LEGACY_PROTOCOL_VERSION 7

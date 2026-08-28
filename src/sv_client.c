@@ -217,7 +217,7 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 
 	if (version != sv_protocol->integer)
 	{
-		/* Stock 1.7/1.7a clients are served the legacy wire format when the
+		/* Stock 1.7 clients are served the legacy wire format when the
 		   operator opted in. Anything else is a plain version mismatch. */
 		if (sv_allowLegacyClients->boolean && IS_LEGACY_PROTOCOL(version))
 		{
@@ -240,24 +240,25 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 					"This is a beta server. Sorry, but you can not connect to it with a release build of CoD4X.\n",
 					sv_protocol->integer);
 #else
-			if (version >= 21)
-			{
-				NET_OutOfBandPrint(NS_SERVER, from,
-					"error\nThis server requires protocol version: %d\n"
-					"Please restart CoD4 and see on the main-menu if a new update is available\n"
-					"{OOBErrorParser protocolmismatch CoD4X" Q3_VERSION " %d}",
-					sv_protocol->integer, sv_protocol->integer);
-			}
-			else
-			{
-				NET_OutOfBandPrint(NS_SERVER, from,
-					"error\nThis server requires protocol version: %d\n"
-					"To update to protocol version 21 please look in CoD4X serverlist (ingame server browser) for an "
-					"updating-server\n"
-					"or install the new client update manually from https://cod4x.ovh\n"
-					"Note: Ingame autoupdate will not work",
-					sv_protocol->integer);
-			}
+				if (version >= 21)
+				{
+					NET_OutOfBandPrint(NS_SERVER, from,
+						"error\nThis server requires protocol version: %d\n"
+						"Please restart CoD4 and see on the main-menu if a new update is available\n"
+						"{OOBErrorParser protocolmismatch CoD4X" Q3_VERSION " %d}",
+						sv_protocol->integer, sv_protocol->integer);
+				}
+				else
+				{
+					NET_OutOfBandPrint(NS_SERVER, from,
+						"error\nThis server requires protocol version: %d\n"
+						"To update to protocol version 21 please look in CoD4X serverlist (ingame server browser) for "
+						"an "
+						"updating-server\n"
+						"or install the new client update manually from https://cod4x.ovh\n"
+						"Note: Ingame autoupdate will not work",
+						sv_protocol->integer);
+				}
 #endif
 			}
 			Com_Printf(CON_CHANNEL_SERVER, "rejected connect from version %i\n", version);
@@ -1080,8 +1081,8 @@ __optimize3 __regparm3 void SV_UserMove(client_t *cl, msg_t *msg, qboolean delta
 		// don't execute if this is an old cmd which is already executed
 		// these old cmds are included when cl_packetdup > 0
 		if (cmds[i].serverTime <= cl->lastUsercmd.serverTime)
-		{ // Q3_MISSIONPACK
-		  //		if ( cmds[i].serverTime > cmds[cmdCount-1].serverTime ) {
+		{			  // Q3_MISSIONPACK
+					  //		if ( cmds[i].serverTime > cmds[cmdCount-1].serverTime ) {
 			continue; // from just before a map_restart
 		}
 		SR_CalculateFrame(cl, &cmds[i]);
