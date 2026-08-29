@@ -1704,6 +1704,7 @@ typedef struct
 // #define NETF( x ) # x,(int)&( (entityState_t*)0 )->x
 #define NETFE(x) x, sizeof(x) / sizeof(netField_t)
 
+
 netFieldList_t netFieldList[] = { { NETFE(entityStateFields) }, { NETFE(playerEntityStateFields) },
 	{ NETFE(corpseEntityStateFields) }, { NETFE(itemEntityStateFields) }, { NETFE(missleEntityStateFields) },
 	{ NETFE(entityStateFields) }, { NETFE(scriptMoverStateFields) }, { NETFE(soundBlendEntityStateFields) },
@@ -1850,13 +1851,76 @@ int __cdecl MSG_WriteDelta_LastChangedField(byte *from, byte *to, netField_t *fi
 	return lc;
 }
 
-void MSG_WriteOriginFloat(const int clientNum, msg_t *msg, int bits, float value, float oldValue)
+void __cdecl MSG_GetMapCenter(float *center);
+
+/* Retail rounds a coordinate by adding a half and truncating, which is not
+   what f2rint does. The map centre has to round identically on both ends or
+   the exclusive-or below will not cancel. */
+static int MSG_RoundOrigin(float f)
 {
+	return (int)(f + 0.5f);
+}
+
+/* Stock 1.7 packs a position as a 7 bit delta, or as 16 bits exclusive-ored
+   against the rounded map centre when the delta will not fit (iw3mp 0x5065f0
+   for x and y, 0x506680 for z). CoD4X replaced both encoders with a raw 32 bit
+   float and moved its own client to match, so a stock client reading 8 or 17
+   bits out of a 32 bit field loses the entire gamestate from the first
+   coordinate on. */
+#define ORIGIN_BIAS (1 << 15)
+
+/* Archived snapshots are read back by MSG_ReadOriginFloat, which is still the
+   raw float form, so only live messages to a legacy client get packed. */
+static qboolean MSG_UseLegacyOrigin(const struct snapshotInfo_s *snapInfo)
+{
+	if (snapInfo == NULL || snapInfo->archived)
+	{
+		return qfalse;
+	}
+	return SV_IsLegacyClientNum(snapInfo->clnum);
+}
+
+static void MSG_WriteOriginBits(msg_t *msg, int axis, float value, float oldValue)
+{
+	vec3_t center;
+	int ival, ioldval, delta, coord;
+
+	ival = MSG_RoundOrigin(value);
+	ioldval = MSG_RoundOrigin(oldValue);
+	delta = ival - ioldval;
+
+	if ((unsigned int)(delta + 64) > 127)
+	{
+		MSG_GetMapCenter(center);
+		coord = MSG_RoundOrigin(center[axis]);
+
+		MSG_WriteBit1(msg);
+		MSG_WriteBits(msg, (ival - coord + ORIGIN_BIAS) ^ (ioldval - coord + ORIGIN_BIAS), 16);
+		return;
+	}
+
+	MSG_WriteBit0(msg);
+	MSG_WriteBits(msg, delta + 64, 7);
+}
+
+void MSG_WriteOriginFloat(const struct snapshotInfo_s *snapInfo, msg_t *msg, int bits, float value, float oldValue)
+{
+	if (MSG_UseLegacyOrigin(snapInfo))
+	{
+		/* -92 is x, -91 is y; retail picks the axis the same way. */
+		MSG_WriteOriginBits(msg, bits != -92, value, oldValue);
+		return;
+	}
 	MSG_WriteFloat(msg, value);
 }
 
-void MSG_WriteOriginZFloat(const int clientNum, msg_t *msg, float value, float oldValue)
+void MSG_WriteOriginZFloat(const struct snapshotInfo_s *snapInfo, msg_t *msg, float value, float oldValue)
 {
+	if (MSG_UseLegacyOrigin(snapInfo))
+	{
+		MSG_WriteOriginBits(msg, 2, value, oldValue);
+		return;
+	}
 	MSG_WriteFloat(msg, value);
 }
 
@@ -2113,11 +2177,11 @@ __regparm3 void MSG_WriteDeltaField(struct snapshotInfo_s *snapInfo, msg_t *msg,
 
 	case -91:
 	case -92:
-		MSG_WriteOriginFloat(snapInfo->clnum, msg, field->bits, floattodata, floatfromdata);
+		MSG_WriteOriginFloat(snapInfo, msg, field->bits, floattodata, floatfromdata);
 		break;
 
 	case -90:
-		MSG_WriteOriginZFloat(snapInfo->clnum, msg, floattodata, floatfromdata);
+		MSG_WriteOriginZFloat(snapInfo, msg, floattodata, floatfromdata);
 		break;
 
 	case -95:
@@ -2194,6 +2258,7 @@ int MSG_WriteDeltaStruct(snapshotInfo_t *snapInfo, msg_t *msg, const int time, c
 			lc = i + 1;
 		}
 	}
+
 	if (lc == 0)
 	{
 		// nothing at all changed

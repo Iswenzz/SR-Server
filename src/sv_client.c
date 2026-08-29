@@ -39,6 +39,10 @@
 
 #endif /* ifdef _LAGDEBUG */
 
+#define STATS_CHUNK_SIZE 0x4d8
+#define STATS_CHUNK_COUNT 7
+#define STATS_CHUNK_MASK ((1 << STATS_CHUNK_COUNT) - 1)
+
 static void SV_CloseDownload(client_t *cl);
 
 /*
@@ -450,6 +454,14 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 	newcl->protocol = version;
 	newcl->legacyClient = (sv_allowLegacyClients->boolean && IS_LEGACY_PROTOCOL(version)) ? qtrue : qfalse;
 
+	/* Ask a stock client for every stats chunk. SV_ReceiveStats clears these as
+	   they arrive; leaving it zeroed would answer "nothing missing" and the
+	   client would move on without ever uploading. */
+	if (newcl->legacyClient)
+	{
+		newcl->receivedstats = STATS_CHUNK_MASK;
+	}
+
 	// get the game a chance to reject this connection or modify the userinfo
 	denied2 = ClientConnect(clientNum, newcl->scriptId);
 
@@ -519,11 +531,21 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 	}
 }
 
+/* A stock client uploads its stats before it will ask for a gamestate: while it
+   sits in CA_SENDINGSTATS it sends one connectionless "stats" packet per chunk
+   - qport, the chunk index, then the bytes - and retries whichever chunk the
+   answer still asks for (iw3mp 0x46af56 builds it, 0x46ae60 picks the chunk).
+   The answer is "statResponse <mask>", the chunks still missing; on a zero mask
+   the client moves on (0x46ba0a).
+
+   CoD4X carries stats over its reliable channel instead, and left this path
+   answering zero without storing anything, so a stock client's stats stayed all
+   zero. That is what trips the stock gametype script's stat integrity check. */
 __optimize3 __regparm2 void SV_ReceiveStats(netadr_t *from, msg_t *msg)
 {
 	unsigned short qport;
 	client_t *cl;
-	byte var_02;
+	int chunk, offset, len;
 
 	qport = MSG_ReadShort(msg);
 	// find which client the message is from
@@ -536,13 +558,30 @@ __optimize3 __regparm2 void SV_ReceiveStats(netadr_t *from, msg_t *msg)
 		return;
 	}
 
-	cl->receivedstats = 0x7F;
-	var_02 = cl->receivedstats;
-	var_02 = ~var_02;
-	var_02 = var_02 & 127;
 	cl->lastPacketTime = svs.time;
 
-	NET_OutOfBandPrint(NS_SERVER, from, "statResponse %i", var_02);
+	chunk = MSG_ReadByte(msg);
+	offset = chunk * STATS_CHUNK_SIZE;
+
+	if (chunk >= 0 && chunk < STATS_CHUNK_COUNT && offset < (int)sizeof(cl->stats))
+	{
+		len = (int)sizeof(cl->stats) - offset;
+		if (len > STATS_CHUNK_SIZE)
+		{
+			len = STATS_CHUNK_SIZE;
+		}
+
+		if (msg->readcount + len <= msg->cursize)
+		{
+			MSG_ReadData(msg, (byte *)&cl->stats + offset, len);
+			cl->receivedstats &= ~(1 << chunk);
+
+			Com_DPrintf(CON_CHANNEL_SERVER, "Received stats chunk %d of %d bytes from %s, still missing %d\n", chunk,
+				len, cl->name, cl->receivedstats & STATS_CHUNK_MASK);
+		}
+	}
+
+	NET_OutOfBandPrint(NS_SERVER, from, "statResponse %i", cl->receivedstats & STATS_CHUNK_MASK);
 }
 
 /*
@@ -1872,6 +1911,11 @@ void SV_SendClientGameState(client_t *client)
 		// write the checksum feed
 		MSG_WriteLong(&msg, sv.checksumFeed);
 
+		/* The gamestate rides an ordinary netchan message, so the client keeps
+		   reading commands after it. Without this terminator it reads past the
+		   end and drops the connection. */
+		MSG_WriteByte(&msg, svc_EOF);
+
 		Com_DPrintf(CON_CHANNEL_SERVER, "Sending %i bytes in legacy gamestate to client: %i\n", msg.cursize,
 			client - svs.clients);
 
@@ -1948,6 +1992,7 @@ __optimize3 __regparm2 void SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
 {
 	int c, clnum;
 	int serverId;
+	qboolean staleGamestate;
 	static const char *clc_strings[256] = { "clc_move", "clc_moveNoDelta", "clc_clientCommand", "clc_EOF", "clc_nop",
 		"clc_sApiData" };
 
@@ -1973,8 +2018,19 @@ __optimize3 __regparm2 void SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
 
 	serverId = cl->serverId;
 
-	if ((serverId & 0xffffff00) != (sv.start_frameTime & 0xffffff00) && !cl->wwwDl_var01 && !cl->wwwDownloadStarted
-		&& !cl->wwwDlAck)
+	/* SV_GenerateServerId packs the frame time into the high bits and a restart
+	   counter into the low byte. A legacy client only ever echoes that low
+	   byte, so the high bits are not on the wire to compare. */
+	if (SV_IsLegacyClient(cl))
+	{
+		staleGamestate = (serverId & 0xff) != (sv_serverid->integer & 0xff);
+	}
+	else
+	{
+		staleGamestate = (serverId & 0xffffff00) != (sv.start_frameTime & 0xffffff00);
+	}
+
+	if (staleGamestate && !cl->wwwDl_var01 && !cl->wwwDownloadStarted && !cl->wwwDlAck)
 	{
 		if (cl->gamestateSent)
 		{

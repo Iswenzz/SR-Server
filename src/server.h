@@ -625,6 +625,7 @@ extern "C"
 	void SV_WriteGameStateLegacy(msg_t *, client_t *);
 
 	qboolean SV_IsLegacyClient(const client_t *cl);
+	qboolean SV_IsLegacyClientNum(int clientNum);
 
 	void SV_GetServerStaticHeader(void);
 

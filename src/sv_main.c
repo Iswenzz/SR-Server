@@ -1669,7 +1669,18 @@ __optimize3 __regparm2 void SV_PacketEvent(netadr_t *from, msg_t *msg)
 	// zombie clients still need to do the Netchan_Process
 	// to make sure they don't need to retransmit the final
 	// reliable message, but they don't do any other processing
-	cl->serverId = MSG_ReadLong(msg);
+	/* A stock 1.7 client writes a nine byte header: one byte of cl.serverId then
+	   two longs. CoD4X widened the id to a long and appended
+	   configDataAcknowledge for sixteen. Reading the wrong width here shifts
+	   everything after it and every packet is thrown away as out of range. */
+	if (SV_IsLegacyClient(cl))
+	{
+		cl->serverId = MSG_ReadByte(msg);
+	}
+	else
+	{
+		cl->serverId = MSG_ReadLong(msg);
+	}
 	cl->messageAcknowledge = MSG_ReadLong(msg);
 
 	if (cl->messageAcknowledge < 0)
@@ -3009,6 +3020,15 @@ void SV_UpdateClientConfigInfo(client_t *cl)
 {
 	++svs.configDataSequence;
 	svs.changedConfigData[svs.configDataSequence % MAX_CONFIGDATACACHE] = cl - svs.clients;
+
+	/* CoD4X carries names in svc_configclient, which a stock client never
+	   receives - so it would show a blank scoreboard entry. clientState_t
+	   netname is the field it does read, riding the snapshot client delta, and
+	   nothing else fills it any more. Keep it in step with cl->name. */
+	if (cl->gentity != NULL && cl->gentity->client != NULL)
+	{
+		Q_strncpyz(cl->gentity->client->sess.cs.netname, cl->name, sizeof(cl->gentity->client->sess.cs.netname));
+	}
 }
 
 typedef struct
@@ -3024,26 +3044,51 @@ qboolean SV_IsLegacyClient(const client_t *cl)
 	return (cl != NULL && cl->legacyClient) ? qtrue : qfalse;
 }
 
-/* Stock 1.7 clients. Everything CoD4X added to the gamestate is left out:
-   configstrings carry their own opcode and a 16 bit index instead of being
-   packed behind a single opcode and a count, and no svc_configclient blocks are
-   emitted. Indices at or above MAX_LEGACY_CONFIGSTRINGS would run off the end of
-   the client's table, so they are dropped. */
+/* The message writers only carry a client number, so they ask by index. */
+qboolean SV_IsLegacyClientNum(int clientNum)
+{
+	if (clientNum < 0 || clientNum >= sv_maxclients->integer)
+	{
+		return qfalse;
+	}
+	return SV_IsLegacyClient(&svs.clients[clientNum]);
+}
+
+/* True for slots SV_SpawnServer preloaded with sv.emptyConfigString and never
+   filled in. Testing the raw index against 0 matches nothing. */
+static qboolean SV_IsEmptyConfigstring(unsigned short strindex)
+{
+	return (strindex == 0 || strindex == sv.emptyConfigString) ? qtrue : qfalse;
+}
+/* The version tag a stock 1.7 client checks itself against. */
+#define VERSION_CONFIGSTRING 2
+#define LEGACY_VERSION_TAG "cod"
+
+/* Stock 1.7 clients. Everything CoD4X added to the gamestate is left out: no
+   svc_configclient blocks, and the configstrings come as one svc_configstring
+   opcode, a 16 bit count, then that many entries of a zero bit, a 12 bit index
+   and a byte aligned string.
+
+   The client also accepts a one bit in place of the index, meaning "one past
+   the previous one", but stock servers never emit it, so neither do we - an
+   untravelled path in a 2007 parser is not worth the two bits it saves.
+
+   12 bits is why MAX_LEGACY_CONFIGSTRINGS is a hard ceiling and not just a
+   table size: anything above it is unaddressable, so it gets dropped. */
 void SV_WriteGameStateLegacy(msg_t *msg, client_t *cl)
 {
-	int i, clnum, dropped;
+	int i, clnum, dropped, count;
 	entityState_t nullstate, *base;
 	snapshotInfo_t snapInfo;
 	unsigned short strindex;
+	const char *val;
 
 	MSG_WriteByte(msg, svc_gamestate);
 	MSG_WriteLong(msg, cl->reliableSequence);
 
-	for (i = 0, dropped = 0; i < MAX_CONFIGSTRINGS; i++)
+	for (i = 0, count = 0, dropped = 0; i < MAX_CONFIGSTRINGS; i++)
 	{
-		strindex = SV_GetConfigstringIndex(i);
-
-		if (strindex == 0)
+		if (SV_IsEmptyConfigstring(SV_GetConfigstringIndex(i)))
 		{
 			continue;
 		}
@@ -3052,9 +3097,35 @@ void SV_WriteGameStateLegacy(msg_t *msg, client_t *cl)
 			dropped++;
 			continue;
 		}
-		MSG_WriteByte(msg, svc_configstring);
-		MSG_WriteShort(msg, i);
-		MSG_WriteBigString(msg, SL_ConvertToString(strindex));
+		count++;
+	}
+
+	MSG_WriteByte(msg, svc_configstring);
+	MSG_WriteShort(msg, count);
+
+	for (i = 0; i < MAX_LEGACY_CONFIGSTRINGS; i++)
+	{
+		strindex = SV_GetConfigstringIndex(i);
+
+		if (SV_IsEmptyConfigstring(strindex))
+		{
+			continue;
+		}
+		val = SL_ConvertToString(strindex);
+
+		/* Configstring 2 is the version tag. SV_BuildXAssetCSString writes
+		   "cod<protocol>" plus the overallocated asset counts, both CoD4X
+		   additions; CL_CheckGameVersion on a stock client compares the first
+		   token against its own "cod" and drops the connection on anything
+		   else. */
+		if (i == VERSION_CONFIGSTRING)
+		{
+			val = LEGACY_VERSION_TAG;
+		}
+
+		MSG_WriteBit0(msg);
+		MSG_WriteBits(msg, i, 12);
+		MSG_WriteBigString(msg, val);
 	}
 
 	if (dropped)
