@@ -3016,19 +3016,32 @@ int SV_GetModelConfigstringIndex(int num)
 	return SV_GetConfigstringIndex(num + 0x33E);
 }
 
+/* CoD4X carries names in svc_configclient, which a stock client never receives -
+   so it would show a blank scoreboard entry. clientState_t netname is the field
+   it does read, riding the snapshot client delta, and nothing else fills it any
+   more: the game's own ClientSetUsername is commented out.
+
+   It has to be rewritten every time the game rebuilds the client's session, not
+   just when the name changes. ClientConnect runs again on every map load and on
+   every map_restart, and the extended path does not notice because
+   SV_WriteGameState resends svc_configclient for every client with each
+   gamestate - a legacy client has no such second source. */
+void SV_UpdateClientNetname(client_t *cl)
+{
+	if (cl->gentity == NULL || cl->gentity->client == NULL)
+	{
+		return;
+	}
+
+	Q_strncpyz(cl->gentity->client->sess.cs.netname, cl->name, sizeof(cl->gentity->client->sess.cs.netname));
+}
+
 void SV_UpdateClientConfigInfo(client_t *cl)
 {
 	++svs.configDataSequence;
 	svs.changedConfigData[svs.configDataSequence % MAX_CONFIGDATACACHE] = cl - svs.clients;
 
-	/* CoD4X carries names in svc_configclient, which a stock client never
-	   receives - so it would show a blank scoreboard entry. clientState_t
-	   netname is the field it does read, riding the snapshot client delta, and
-	   nothing else fills it any more. Keep it in step with cl->name. */
-	if (cl->gentity != NULL && cl->gentity->client != NULL)
-	{
-		Q_strncpyz(cl->gentity->client->sess.cs.netname, cl->name, sizeof(cl->gentity->client->sess.cs.netname));
-	}
+	SV_UpdateClientNetname(cl);
 }
 
 typedef struct
@@ -3652,9 +3665,18 @@ void SV_MapRestart(qboolean fastRestart)
 		}
 
 		// add the map_restart command
-		//		NET_OutOfBandPrint( NS_SERVER, &client->netchan.remoteAddress, "fastrestart" ); //Replaced
-
-		SV_SendServerCommandNoLoss(client, "%c", 'm');
+		/* CoD4X replaced the out of band packet with the reliable 'm', which stock 1.7
+		   carries in neither command table - not CL_ExecuteServerCommand and not
+		   CG_ServerCommand - so a legacy client is told the way retail tells it
+		   (sv_ccmds_mp.cpp:490) and never learns about the restart otherwise. */
+		if (SV_IsLegacyClient(client))
+		{
+			NET_OutOfBandPrint(NS_SERVER, &client->netchan.remoteAddress, "fastrestart");
+		}
+		else
+		{
+			SV_SendServerCommandNoLoss(client, "%c", 'm');
+		}
 	}
 
 	/*    SV_InitCvars();*/
@@ -4498,6 +4520,15 @@ void SV_SetConfigstring(int index, const char *val)
 			continue;
 		}
 
+		/* SV_WriteGameStateLegacy leaves these out of the gamestate for the same
+		   reason, and the live push has to agree with it: a stock client's
+		   CL_ConfigstringModified answers any index at or above the ceiling with
+		   Com_Error(ERR_DROP, "configstring > MAX_CONFIGSTRINGS"). */
+		if (index >= MAX_LEGACY_CONFIGSTRINGS && SV_IsLegacyClient(client))
+		{
+			continue;
+		}
+
 		if (len >= maxChunkSize)
 		{
 			int sent = 0;
@@ -4735,7 +4766,20 @@ void SV_SpawnServer(const char *mapname)
 			{
 				continue;
 			}
-			SV_SendServerCommandNoLoss(cl, "%c \"%s\" \"%s\"", 'l', mapname, sv_g_gametype->string);
+			/* Same swap as the fast restart. Retail announces the new map out of band
+			   and reads the two names back as separate lines, so the newlines are the
+			   format and not decoration (sv_init_mp.cpp:441 against the two
+			   MSG_ReadStringLine calls in CL_ConnectionlessPacket). Without it a stock
+			   client draws the old map until the new gamestate lands. */
+			if (SV_IsLegacyClient(cl))
+			{
+				NET_OutOfBandPrint(
+					NS_SERVER, &cl->netchan.remoteAddress, "loadingnewmap\n%s\n%s", mapname, sv_g_gametype->string);
+			}
+			else
+			{
+				SV_SendServerCommandNoLoss(cl, "%c \"%s\" \"%s\"", 'l', mapname, sv_g_gametype->string);
+			}
 			// force a snapshot to be sent
 			cl->nextSnapshotTime = -1;
 			SV_SendClientSnapshot(cl);

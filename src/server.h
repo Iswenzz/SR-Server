@@ -808,6 +808,7 @@ extern "C"
 	void SV_CalculateChecksums();
 	void SV_WriteClientConfigInfo(msg_t *msg, client_t *cl, int messageNum);
 	void SV_UpdateClientConfigInfo(client_t *cl);
+	void SV_UpdateClientNetname(client_t *cl);
 	void SV_ScreenshotClient(client_t *cl, const char *name);
 	void SV_ScreenshotArrived(client_t *cl, const char *filename);
 	void SV_ModuleArrived(client_t *cl, const char *filename, long checksum);

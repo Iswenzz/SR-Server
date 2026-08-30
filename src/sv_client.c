@@ -1198,6 +1198,10 @@ void SV_ClientEnterWorld(client_t *client, usercmd_t *cmd)
 	// call the game begin function
 	ClientBegin(clientNum);
 
+	/* The session the scoreboard name lives in was just rebuilt, and this is the
+	   one point every map load and every map_restart passes through. */
+	SV_UpdateClientNetname(client);
+
 	SV_SApiSteamIDToString(client->playerid ? client->playerid : client->steamid, psti, sizeof(psti));
 
 	// It was never intended to make a new demo for each fast_restart.
@@ -3113,12 +3117,7 @@ void SV_SetClientStat(int clientNum, signed int index, int value)
 	{
 		return;
 	}
-	/* The stat stays server side either way; only the CoD4X client understands
-	   the 'N' push, so stock clients are not told about it. */
-	if (!SV_IsLegacyClient(cl))
-	{
-		SV_SendServerCommandNoLoss(cl, "%c %i %i", 'N', index, value);
-	}
+	SV_SendServerCommandNoLoss(cl, "%c %i %i", 'N', index, value);
 }
 
 int SV_GetClientStat(int clientNum, signed int index)

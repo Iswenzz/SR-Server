@@ -623,12 +623,19 @@ int MSG_SkipToString( msg_t *msg, const char* string ) {
 	return qfalse;
 }
 */
+/* Both readers run to the terminator and only cap what they store, the way retail
+   does (msg_mp.cpp: `if (l < 0x400) string[l] = ...` inside an unbounded loop).
+   Stopping the read at the cap instead leaves readcount inside the string, and a
+   caller that reads on - SV_ExecuteClientMessage after a client command, or the
+   second line of an out of band packet - parses the tail of that string as its own
+   fields. On the clc path that shows up as "bad command byte" for the rest of the
+   packet, which a stock client reaches on any command near MAX_STRING_CHARS: the
+   pure checksum list and userinfo both get there. */
 char *MSG_ReadString(msg_t *msg, char *bigstring, int len)
 {
 	int l, c;
 
-	l = 0;
-	do
+	for (l = 0;; l++)
 	{
 		c = MSG_ReadByte(msg); // use ReadByte so -1 is out of bounds
 		if (c == -1 || c == 0)
@@ -640,11 +647,13 @@ char *MSG_ReadString(msg_t *msg, char *bigstring, int len)
 		{
 			c = '.';
 		}
-		bigstring[l] = c;
-		l++;
-	} while (l < len - 1);
+		if (l < len - 1)
+		{
+			bigstring[l] = c;
+		}
+	}
 
-	bigstring[l] = 0;
+	bigstring[l < len - 1 ? l : len - 1] = 0;
 
 	return bigstring;
 }
@@ -653,8 +662,7 @@ char *MSG_ReadStringLine(msg_t *msg, char *bigstring, int len)
 {
 	int l, c;
 
-	l = 0;
-	do
+	for (l = 0;; l++)
 	{
 		c = MSG_ReadByte(msg); // use ReadByte so -1 is out of bounds
 		if (c == -1 || c == 0 || c == '\n')
@@ -666,11 +674,13 @@ char *MSG_ReadStringLine(msg_t *msg, char *bigstring, int len)
 		{
 			c = '.';
 		}
-		bigstring[l] = c;
-		l++;
-	} while (l < len - 1);
+		if (l < len - 1)
+		{
+			bigstring[l] = c;
+		}
+	}
 
-	bigstring[l] = 0;
+	bigstring[l < len - 1 ? l : len - 1] = 0;
 
 	return bigstring;
 }
