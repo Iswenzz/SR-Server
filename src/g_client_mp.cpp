@@ -192,9 +192,7 @@ extern "C" __cdecl const char* G_GetPlayerId(struct gentity_s* ent)
 		return va("%llu", xuid);
 	*/
 
-	SV_GetGuid(ent->client->ps.clientNum, id, sizeof(id));
-
-	return va("%s", id);
+	return va("%s", SV_GetGuid(ent->client->ps.clientNum, id, sizeof(id)));
 }
 
 void CS_SetPlayerName(clientState_t* cs, const char* name)

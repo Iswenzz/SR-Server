@@ -488,11 +488,21 @@ void SV_XModelDebugBoxes(struct gentity_s *ent)
 
 const char *SV_GetGuid(unsigned int clnum, char *buffer, int len)
 {
-	if (clnum > sv_maxclients->integer)
-		return "";
-	if (sv_legacymode->boolean)
+	if (len > 0)
 	{
-		return svs.clients[clnum].legacy_pbguid;
+		buffer[0] = '\0';
+	}
+
+	if (clnum >= (unsigned int)sv_maxclients->integer)
+		return buffer;
+
+	/* Legacy clients have no playerid to report, so they use the guid
+	   SV_MakeLegacyGuid derived for them. sv_legacyguidmode still forces every
+	   client onto the punkbuster guid, as before. */
+	if (sv_legacymode->boolean || SV_IsLegacyClient(&svs.clients[clnum]))
+	{
+		Q_strncpyz(buffer, svs.clients[clnum].legacy_pbguid, len);
+		return buffer;
 	}
 	Com_sprintf(buffer, len, "%llu", svs.clients[clnum].playerid);
 	return buffer;

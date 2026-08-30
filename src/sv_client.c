@@ -45,6 +45,23 @@
 
 static void SV_CloseDownload(client_t *cl);
 
+static void SV_MakeLegacyGuid(client_t *cl, netadr_t *from)
+{
+	char input[128];
+	char hash[65];
+	unsigned long size = sizeof(hash);
+
+	Com_sprintf(input, sizeof(input), "cod4x legacy guid|%s", NET_AdrToStringShort(from));
+
+	if (!Sec_HashMemory(SEC_HASH_SHA256, input, strlen(input), hash, &size, qfalse))
+	{
+		cl->legacy_pbguid[0] = '\0';
+		return;
+	}
+
+	Q_strncpyz(cl->legacy_pbguid, hash, sizeof(cl->legacy_pbguid));
+}
+
 /*
 SV_GetChallenge
 
@@ -453,6 +470,11 @@ __optimize3 __regparm1 void SV_DirectConnect(netadr_t *from)
 	newcl->scriptId = Scr_AllocArray();
 	newcl->protocol = version;
 	newcl->legacyClient = (sv_allowLegacyClients->boolean && IS_LEGACY_PROTOCOL(version)) ? qtrue : qfalse;
+
+	if (newcl->legacyClient)
+	{
+		SV_MakeLegacyGuid(newcl, from);
+	}
 
 	/* Ask a stock client for every stats chunk. SV_ReceiveStats clears these as
 	   they arrive; leaving it zeroed would answer "nothing missing" and the
