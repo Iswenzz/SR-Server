@@ -1,6 +1,6 @@
 {
 	"name": "sr",
-	"version": "21.2.0",
+	"version": "21.3.0",
 	"description": "SR server module.",
 	"homepage": "https://github.com/Iswenzz/SR-CoD4x",
 	"dependencies": [
