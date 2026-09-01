@@ -111,6 +111,7 @@ cvar_t *sv_clientArchive;
 cvar_t *sv_shownet;
 cvar_t *sv_legacymode;
 cvar_t *sv_allowLegacyClients;
+cvar_t *sv_authTimeout;
 cvar_t *sv_steamgroup;
 cvar_t *sv_authtoken;
 cvar_t *sv_disableChat;
@@ -2760,6 +2761,9 @@ void SV_InitCvarsOnce(void)
 		Cvar_RegisterInt("protocol", PROTOCOL_VERSION, PROTOCOL_VERSION, PROTOCOL_VERSION, 0x44, "Protocol version");
 	sv_allowLegacyClients = Cvar_RegisterBool("sv_allowLegacyClients", qtrue, CVAR_ARCHIVE,
 		"Accept stock 1.7 clients and serve them the legacy wire format");
+	/* Under SV_MAXCS_CONNECTEDTIME, or the client is dropped before the wait ends. */
+	sv_authTimeout = Cvar_RegisterInt("sv_authTimeout", 0, 0, 15, CVAR_ARCHIVE,
+		"Seconds to wait for a client to authenticate before letting it in unauthenticated. 0 waits indefinitely");
 	sv_privateClients = Cvar_RegisterInt("sv_privateClients", 0, 0, 64, 4,
 		"Maximum number of private clients allowed onto this server");
 	sv_hostname = Cvar_RegisterString("sv_hostname", "^5CoD4Host", 5, "Host name of the server");

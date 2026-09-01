@@ -1491,7 +1491,7 @@ void SV_WriteDownloadToClientLegacy(client_t *cl, msg_t *msg)
 
 			// block zero with a negative size is the error channel
 			MSG_WriteByte(msg, svc_download);
-			MSG_WriteShort(msg, 0);
+			MSG_WriteLong(msg, 0);
 			MSG_WriteLong(msg, -1);
 			MSG_WriteString(msg, errorMessage);
 
@@ -1525,8 +1525,11 @@ void SV_WriteDownloadToClientLegacy(client_t *cl, msg_t *msg)
 	cl->downloadBlockSize = blockSize;
 	cl->downloadEOF = (blockSize == 0) ? qtrue : qfalse;
 
+	/* CL_ParseDownload reads the block number as a long, not the short Q3 wrote.
+	   A short here leaves the client reading the size into the high half of it,
+	   silently mismatching every block and never acknowledging one. */
 	MSG_WriteByte(msg, svc_download);
-	MSG_WriteShort(msg, cl->downloadClientBlock);
+	MSG_WriteLong(msg, cl->downloadClientBlock);
 	if (cl->downloadClientBlock == 0)
 	{
 		MSG_WriteLong(msg, cl->downloadSize); // block zero carries the file size
@@ -1847,6 +1850,24 @@ void SV_SendClientGameState(client_t *client)
 	{
 		sapi = SV_ConnectSApi(client);
 		stats = SV_RequestStats(client);
+
+		/* Neither handshake ever gives up: SV_RequestStats latches on the first
+		   call and returns false until the client answers, and SV_ConnectSApi
+		   stays false until Steam authenticates it. A client that cannot do
+		   either - an unofficial build, or any client when steam_api is not
+		   loaded - therefore waits until SV_CheckTimeouts drops it instead of
+		   connecting at all. sv_authTimeout bounds that wait; past it the
+		   client comes in unauthenticated, with the zero playerid a legacy
+		   client already gets, and bans still match on IP. */
+		if ((!sapi || !stats) && sv_authTimeout->integer > 0
+			&& svs.time - client->lastConnectTime >= sv_authTimeout->integer * 1000)
+		{
+			Com_Printf(CON_CHANNEL_SERVER,
+				"Client %s did not authenticate within %d seconds, letting it in unauthenticated\n", client->name,
+				sv_authTimeout->integer);
+			sapi = qtrue;
+			stats = qtrue;
+		}
 	}
 
 	if (!sapi || !stats)
