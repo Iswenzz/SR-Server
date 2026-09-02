@@ -1442,6 +1442,50 @@ Fill up msg with data
 #define LEGACY_DOWNLOAD_BLKSIZE 1024
 #define LEGACY_DOWNLOAD_RETRANSMIT_MSEC 1000
 
+/*
+SV_WWWRedirectClientLegacy
+
+The same three fields SV_WWWRedirect sends, in the framing the stock client reads them from: an
+svc_download whose block number is -1. CL_ParseDownload treats that as the redirect and hands the rest
+to CL_ParseWWWDownload, which answers over the "wwwdl" text command rather than the reliable channel.
+*/
+static qboolean SV_WWWRedirectClientLegacy(client_t *cl, msg_t *msg)
+{
+	int flags = 0;
+
+	if (!sv_wwwBaseURL->string || !*sv_wwwBaseURL->string)
+	{
+		return qfalse;
+	}
+
+	Com_sprintf(cl->wwwDownloadURL, sizeof(cl->wwwDownloadURL), "%s/%s", sv_wwwBaseURL->string, cl->downloadName);
+	Com_Printf(CON_CHANNEL_SERVER, "Redirecting client '%s' to %s\n", cl->name, cl->wwwDownloadURL);
+
+	if (sv_wwwDlDisconnected->boolean)
+	{
+		flags |= 1;
+	}
+
+	MSG_WriteByte(msg, svc_download);
+	MSG_WriteLong(msg, -1);
+	MSG_WriteString(msg, cl->wwwDownloadURL);
+	MSG_WriteLong(msg, cl->downloadSize);
+	MSG_WriteLong(msg, flags);
+
+	// The bytes are the redirect host's problem from here, but downloadName has to stay: the wwwdl
+	// handlers report against it, and a client that comes back with a failure is served it from here.
+	if (cl->download)
+	{
+		FS_FCloseFile(cl->download);
+	}
+	cl->download = 0;
+	cl->downloadXmitBlock = 0;
+
+	cl->wwwDownloadStarted = qtrue;
+	cl->wwwDlAck = qfalse;
+	return qtrue;
+}
+
 void SV_WriteDownloadToClientLegacy(client_t *cl, msg_t *msg)
 {
 	byte block[LEGACY_DOWNLOAD_BLKSIZE];
@@ -1451,6 +1495,13 @@ void SV_WriteDownloadToClientLegacy(client_t *cl, msg_t *msg)
 	if (!*cl->downloadName)
 	{
 		return; // Nothing being downloaded
+	}
+
+	// The client acknowledged a redirect and is pulling the file over HTTP. Nothing to pump until it
+	// reports back, and blocks sent under it would be parsed as the redirect's own payload.
+	if (cl->wwwDlAck)
+	{
+		return;
 	}
 
 	if (!cl->download)
@@ -1501,6 +1552,21 @@ void SV_WriteDownloadToClientLegacy(client_t *cl, msg_t *msg)
 
 		Com_Printf(CON_CHANNEL_SERVER, "clientDownload: %d : beginning \"%s\" (%d bytes)\n", cl - svs.clients,
 			cl->downloadName, cl->downloadSize);
+
+		if (sv_wwwDownload->boolean && cl->wwwDownload)
+		{
+			// One redirect per file. A client that came back saying the HTTP copy was unusable gets
+			// the blocks instead, and the flag is spent here so the next file is offered the redirect.
+			if (cl->wwwDl_failed)
+			{
+				cl->wwwDl_failed = 0;
+			}
+			else if (SV_WWWRedirectClientLegacy(cl, msg))
+			{
+				return;
+			}
+		}
+		cl->wwwDownloadStarted = qfalse;
 	}
 
 	// current block is out and still unacknowledged, hold until the retransmit timer expires
@@ -2603,6 +2669,67 @@ void SV_WWWDownload_ChkFail_f(client_t *cl)
 	SV_SendClientGameState(cl);
 }
 
+/*
+SV_WWWDownload_f
+
+The stock client answers a redirect with "wwwdl <subcommand>" text rather than the reliable download
+channel, so this is the legacy face of SV_ExecuteDownloadCmd's four web cases. It dispatches into the
+same handlers, which is what keeps a client on either protocol ending up in the same state. "ack" has
+no reliable-channel counterpart: that transport cannot fail to deliver, so only this one has to be
+told the client received the redirect at all.
+*/
+void SV_WWWDownload_f(client_t *cl)
+{
+	const char *subcmd = SV_Cmd_Argv(1);
+
+	if (!SV_IsLegacyClient(cl))
+	{
+		return;
+	}
+
+	if (!cl->wwwDownloadStarted)
+	{
+		Com_PrintWarning(CON_CHANNEL_SERVER, "SV_WWWDownload: unexpected wwwdl '%s' for client '%s'\n", subcmd,
+			cl->name);
+		SV_DropClient(cl, "Unexpected www download message.");
+		return;
+	}
+
+	if (!Q_stricmp(subcmd, "ack"))
+	{
+		if (cl->wwwDlAck)
+		{
+			Com_PrintWarning(CON_CHANNEL_SERVER, "Duplicate wwwdl ack from client '%s'\n", cl->name);
+		}
+		cl->wwwDlAck = qtrue;
+		return;
+	}
+	if (!Q_stricmp(subcmd, "bbl8r"))
+	{
+		SV_WWWDownload_BBL8R_f(cl);
+		return;
+	}
+	if (!Q_stricmp(subcmd, "done"))
+	{
+		SV_WWWDownload_Done_f(cl);
+		return;
+	}
+	if (!Q_stricmp(subcmd, "fail"))
+	{
+		SV_WWWDownload_Fail_f(cl);
+		return;
+	}
+	if (!Q_stricmp(subcmd, "chkfail"))
+	{
+		SV_WWWDownload_ChkFail_f(cl);
+		return;
+	}
+
+	Com_PrintWarning(CON_CHANNEL_SERVER, "SV_WWWDownload: unknown wwwdl subcommand '%s' for client '%s'\n", subcmd,
+		cl->name);
+	SV_DropClient(cl, "Unexpected www download message.");
+}
+
 void SV_BeginDownloadX_f(client_t *cl, msg_t *msg)
 {
 	// Kill any existing download
@@ -2743,9 +2870,9 @@ static ucmd_t ucmds[] = { { "userinfo", SV_UpdateUserinfo_f, 0 }, { "disconnect"
 	   use SV_BeginDownloadX_f over the reliable transport instead. */
 	{ "download", SV_BeginDownload_f, 1 }, { "nextdl", SV_NextDownload_f, 1 }, { "stopdl", SV_StopDownload_f, 1 },
 	{ "donedl", SV_DoneDownload_f, 1 }, { "retransdl", SV_RetransmitDownload_f, 1 },
-	/*
-		{"wwwdl", SV_WWWDownload_f, 0},
-	*/
+	/* Answers to a redirect arrive while the client is downloading, so this one is a download command
+	   too - at zero it would be dropped by the inDl gate and the transfer would hang. */
+	{ "wwwdl", SV_WWWDownload_f, 1 },
 	{ "muteplayer", SV_MutePlayer_f, 0 }, { "unmuteplayer", SV_UnmutePlayer_f, 0 }, { NULL, NULL, 0 } };
 
 /*
