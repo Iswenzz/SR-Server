@@ -353,6 +353,7 @@ namespace SR
 	public:
 		static float CmdScale(playerState_tt* ps, usercmd_s* cmd);
 		static void ProjectVelocity(const vec3& in, const vec3& normal, vec3& out);
+		static vec3 Normalize(const vec3& v);
 		static void JumpClearState(playerState_tt* ps);
 		static int CorrectAllSolid(pmove_tt* pm, pml_tt* pml, trace_tt* trace);
 		static void GroundTraceMissed(pmove_tt* pm, pml_tt* pml);

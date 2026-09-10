@@ -4,6 +4,12 @@
 
 namespace SR
 {
+	vec3 CoD4::Normalize(const vec3 &v)
+	{
+		const float length = glm::length(v);
+		return length > 0.0f ? v / length : vec3{ 0.0f, 0.0f, 0.0f };
+	}
+
 	float CoD4::CmdScale(playerState_tt *ps, usercmd_s *cmd)
 	{
 		const float fmove = static_cast<float>(cmd->forwardmove);
