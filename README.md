@@ -1,4 +1,4 @@
-# SR CoD4x
+# SR Server
 
 A modification of the Call of Duty 4: Modern Warfare server. CoD4x fixes several bugs in the original binaries and lets developers extend server functionality with extra variables and plugins. When a player joins a CoD4x server, their client is automatically updated to the CoD4x client, which fixes known base-game client bugs and, together with the server, unlocks extra features.
 
@@ -57,7 +57,7 @@ _Build Command:_
 
     install.sh
 
-## [Download](https://github.com/Iswenzz/SR-CoD4x/releases)
+## [Download](https://github.com/Iswenzz/SR-Server/releases)
 
 ## Contributors:
 
