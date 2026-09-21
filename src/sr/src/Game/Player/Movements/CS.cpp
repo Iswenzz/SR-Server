@@ -90,7 +90,7 @@ namespace SR
 		}
 		// Fixed tick rate for air accel
 		const int tick = static_cast<int>(pm->cmd.serverTime / sv_air_tick_ms);
-		const int oldtick = static_cast<int>(pm->oldcmd.serverTime / sv_air_tick_ms);
+		const int oldtick = static_cast<int>((pm->cmd.serverTime - pml->msec) / sv_air_tick_ms);
 
 		if (tick != oldtick)
 		{
