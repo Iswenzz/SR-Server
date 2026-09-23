@@ -2339,9 +2339,19 @@ void __cdecl SV_VerifyPaks_f(client_t *cl)
 		if (*pArg == '@')
 #endif
 		{
-			pArg = SV_Cmd_Argv(nCurArg++);
-			pArg++; // Skip L
-			cl->localization = atoi(pArg);
+			/* A stock 1.7 client goes straight to its checksums after the '@'; only a CoD4X
+			   client puts "L<localization> <serverId>" first. Consuming the first checksum as
+			   the localization left the list one short and failed every stock client as unpure. */
+			pArg = SV_Cmd_Argv(nCurArg);
+			if (*pArg == 'L')
+			{
+				nCurArg++;
+				cl->localization = atoi(pArg + 1);
+			}
+			else if (!SV_IsLegacyClient(cl))
+			{
+				return;
+			}
 			// #if(10*(SYS_COMMONVERSION) >= 200)
 			if (!SV_IsLegacyClient(cl))
 			{
