@@ -11,7 +11,7 @@
 // cl->gentity->client->ps.clientNumber is the spectator client or client if not spectating.
 namespace SR
 {
-	class Player : public std::enable_shared_from_this<Player>
+	class Player
 	{
 	public:
 		static inline std::array<Ref<Player>, MAX_CLIENTS> List{};
@@ -48,7 +48,7 @@ namespace SR
 		void VoiceChat();
 
 		clientSnapshot_t *GetFrame();
-		static Ref<Player> &Get(int num);
+		static const Ref<Player> &Get(int num);
 		static void Add(client_t *cl);
 	};
 }

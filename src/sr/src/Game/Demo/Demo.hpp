@@ -40,7 +40,7 @@ namespace SR
 		int Version = 0;
 		int LastValidFrame = 0;
 		bool HasReadInformations = false;
-		bool IsLoaded = false;
+		std::atomic<bool> IsLoaded = false;
 
 		Demo(const std::string& id, const std::string& path);
 		~Demo();

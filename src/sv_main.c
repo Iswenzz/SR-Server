@@ -3155,6 +3155,7 @@ void SV_WriteGameStateLegacy(msg_t *msg, client_t *cl)
 
 	Com_Memset(&nullstate, 0, sizeof(nullstate));
 	clnum = cl - svs.clients;
+	MSG_SetLegacyOrigin(qtrue);
 
 	for (i = 0; i < MAX_GENTITIES; i++)
 	{
@@ -3174,6 +3175,7 @@ void SV_WriteGameStateLegacy(msg_t *msg, client_t *cl)
 		MSG_WriteDeltaEntity(&snapInfo, msg, 0, &nullstate, base, qtrue);
 	}
 
+	MSG_SetLegacyOrigin(qfalse);
 	MSG_WriteByte(msg, svc_EOF);
 }
 

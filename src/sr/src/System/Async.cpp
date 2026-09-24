@@ -7,6 +7,10 @@ namespace SR
 		if (Running)
 			return;
 
+		// Com_Error calls exit(), and destroying joinable workers there would std::terminate.
+		static std::once_flag registered;
+		std::call_once(registered, [] { std::atexit([] { Shutdown(); }); });
+
 		Running = true;
 		Workers.reserve(threadCount);
 
@@ -19,12 +23,21 @@ namespace SR
 		if (!Running)
 			return;
 
-		Running = false;
+		{
+			// Flipped under the lock so a worker between its predicate check and wait() can't miss the wakeup.
+			std::scoped_lock lock(QueueMutex);
+			Running = false;
+
+			for (auto& task : ActiveTasks)
+				task->Cancel();
+		}
 		Condition.notify_all();
 
 		for (auto& worker : Workers)
 		{
-			if (worker.joinable())
+			if (worker.get_id() == std::this_thread::get_id())
+				worker.detach();
+			else if (worker.joinable())
 				worker.join();
 		}
 		Workers.clear();
@@ -43,6 +56,12 @@ namespace SR
 		task->Status = AsyncStatus::Pending;
 		{
 			std::scoped_lock lock(QueueMutex);
+			std::erase_if(ActiveTasks,
+				[](const auto& active)
+				{
+					const AsyncStatus status = active->Status;
+					return status != AsyncStatus::Pending && status != AsyncStatus::Running;
+				});
 			ActiveTasks.push_back(task);
 		}
 		return task;

@@ -2,7 +2,7 @@
 
 namespace SR
 {
-	DemoPlayer::DemoPlayer(const Ref<class Player> &player)
+	DemoPlayer::DemoPlayer(class Player *player)
 	{
 		Player = player;
 	}
@@ -21,10 +21,12 @@ namespace SR
 		G_CallSpawnEntity(Entity);
 	}
 
+	// The camera entity belongs to the script, which deletes it.
 	void DemoPlayer::Stop()
 	{
 		Player->cl->deltaMessage = 0;
 		Demo.reset();
+		Entity = nullptr;
 		HasFrame = false;
 	}
 

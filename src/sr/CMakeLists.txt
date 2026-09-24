@@ -20,6 +20,7 @@ find_package(CoD4DM1 CONFIG REQUIRED)
 find_package(GLM REQUIRED)
 find_package(Libsamplerate REQUIRED)
 find_package(Minimp3 REQUIRED)
+find_package(Opus CONFIG REQUIRED)
 find_package(speex CONFIG REQUIRED)
 
 # Build

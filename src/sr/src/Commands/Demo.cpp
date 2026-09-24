@@ -47,8 +47,9 @@ namespace SR
 			return;
 		}
 
+		// Frames are still being written by the loader until IsLoaded; no camera means "corrupted" to the script.
 		auto demo = DemoContainer::Demos.find(id);
-		if (demo != std::end(DemoContainer::Demos))
+		if (demo != std::end(DemoContainer::Demos) && demo->second->IsLoaded && !demo->second->Frames.empty())
 		{
 			player->DemoPlayer->Play(demo->second);
 			Scr_AddEntity(player->DemoPlayer->Entity);
@@ -62,7 +63,7 @@ namespace SR
 		std::string id = Scr_GetString(0);
 		auto demo = DemoContainer::Demos.find(id);
 
-		Scr_AddBool(demo != std::end(DemoContainer::Demos) ? demo->second->IsLoaded : qfalse);
+		Scr_AddBool(demo != std::end(DemoContainer::Demos) ? demo->second->IsLoaded.load() : false);
 	}
 
 	void DemoCommands::IsDemoPlaying(scr_entref_t num)
@@ -109,7 +110,7 @@ namespace SR
 
 	void DemoCommands::GetDemoWeapon(scr_entref_t num)
 	{
-		CHECK_PARAMS(0, "Usage: StopDemo()");
+		CHECK_PARAMS(0, "Usage: GetDemoWeapon()");
 
 		Ref<Player> player = Player::Get(num.entnum);
 

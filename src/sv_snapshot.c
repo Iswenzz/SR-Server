@@ -95,6 +95,7 @@ __cdecl void SV_WriteSnapshotToClient(client_t *client, msg_t *msg)
 	snapInfo.snapshotDeltaTime = 0;
 	snapInfo.fromBaseline = 0;
 	snapInfo.archived = 0;
+	MSG_SetLegacyOrigin(qtrue);
 
 	frame = &client->frames[client->netchan.outgoingSequence & PACKET_MASK];
 	frame->var_03 = svsHeader.time;
@@ -323,6 +324,7 @@ __cdecl void SV_WriteSnapshotToClient(client_t *client, msg_t *msg)
 	}
 
 	MSG_WriteBit0(msg);
+	MSG_SetLegacyOrigin(qfalse);
 
 	if (sv_padPackets->integer)
 	{

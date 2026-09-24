@@ -585,7 +585,10 @@ __optimize3 __regparm2 void SV_ReceiveStats(netadr_t *from, msg_t *msg)
 	chunk = MSG_ReadByte(msg);
 	offset = chunk * STATS_CHUNK_SIZE;
 
-	if (chunk >= 0 && chunk < STATS_CHUNK_COUNT && offset < (int)sizeof(cl->stats))
+	/* Connectionless and matched on address and qport only, so it may only fill
+	   a stock client's chunks that are still outstanding, never overwrite. */
+	if (cl->legacyClient && chunk >= 0 && chunk < STATS_CHUNK_COUNT && (cl->receivedstats & (1 << chunk))
+		&& offset < (int)sizeof(cl->stats))
 	{
 		len = (int)sizeof(cl->stats) - offset;
 		if (len > STATS_CHUNK_SIZE)
@@ -3331,11 +3334,11 @@ void __cdecl SV_FreeClient(client_t *cl)
 
 	//  BG_EvalVehicleName();
 	SV_CloseDownload(cl);
-	SR_FreePlayer(cl);
 	if (SV_Loaded())
 	{
 		ClientDisconnect(cl - svs.clients);
 	}
+	SR_FreePlayer(cl);
 	SV_SetUserinfo(cl - svs.clients, "");
 	SV_FreeClientScriptId(cl);
 }

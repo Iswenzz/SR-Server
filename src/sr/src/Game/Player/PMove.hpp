@@ -14,9 +14,9 @@ namespace SR
 	class PMove
 	{
 	public:
-		Ref<class Player> Player;
+		class Player *Player = nullptr;
 
-		PMove(const Ref<class Player> &player);
+		PMove(class Player *player);
 		virtual ~PMove() = default;
 
 		void Initialize();

@@ -83,6 +83,7 @@ extern "C"
 	void MSG_ReadData(msg_t *msg, void *data, int len);
 	float MSG_ReadFloat(msg_t *msg);
 	void MSG_ClearLastReferencedEntity(msg_t *msg);
+	void MSG_SetLegacyOrigin(qboolean enable);
 	void MSG_WriteDeltaEntity(struct snapshotInfo_s *snapInfo, msg_t *msg, const int time, entityState_t *from,
 		entityState_t *to, qboolean force);
 	void MSG_WriteBit0(msg_t *msg);

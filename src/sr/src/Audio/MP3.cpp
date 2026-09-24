@@ -46,17 +46,11 @@ namespace SR
 			task->Status = AsyncStatus::Failure;
 			return;
 		}
-		int channels = 1;
-		int downRate = 8000;
-
 		Rate = fileInfo.hz;
 		Samples = fileInfo.samples;
 
-		std::vector<short> monoData = Audio::StereoToMono(fileInfo.buffer, fileInfo.samples);
-		Buffer = Audio::Resample(monoData.data(), monoData.size(), channels, fileInfo.hz, downRate);
-
+		Load(fileInfo.buffer, fileInfo.samples, fileInfo.channels, Rate);
 		free(fileInfo.buffer);
-		ProcessPackets();
 		IsLoaded = true;
 		task->Status = AsyncStatus::Successful;
 	}

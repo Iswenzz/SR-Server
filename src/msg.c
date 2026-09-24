@@ -1879,11 +1879,18 @@ static int MSG_RoundOrigin(float f)
    coordinate on. */
 #define ORIGIN_BIAS (1 << 15)
 
-/* Archived snapshots are read back by MSG_ReadOriginFloat, which is still the
-   raw float form, so only live messages to a legacy client get packed. */
+/* Archived snapshots and demos are read back as the raw float form, so only
+   the live writers turn this on, and only for a legacy client. */
+static qboolean msg_legacyOrigin;
+
+void MSG_SetLegacyOrigin(qboolean enable)
+{
+	msg_legacyOrigin = enable;
+}
+
 static qboolean MSG_UseLegacyOrigin(const struct snapshotInfo_s *snapInfo)
 {
-	if (snapInfo == NULL || snapInfo->archived)
+	if (!msg_legacyOrigin || snapInfo == NULL || snapInfo->archived)
 	{
 		return qfalse;
 	}

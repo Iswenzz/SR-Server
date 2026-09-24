@@ -24,24 +24,26 @@ namespace SR
 
 		Log::WriteLine("^5[WAV] Opening {}", FilePath.c_str());
 
-		WavHeader header;
+		// Only canonical 16-bit PCM files, with the data chunk right after "fmt ".
+		WavHeader header{};
 		Input.read(reinterpret_cast<char *>(&header), sizeof(WavHeader));
-		Buffer.resize(FileSize);
-
+		if (!Input || std::memcmp(header.riff, "RIFF", 4) || std::memcmp(header.wave, "WAVE", 4)
+			|| std::memcmp(header.subchunk2ID, "data", 4) || header.audioFormat != SPEEX_PCM
+			|| header.bitsPerSample != SPEEX_BITS_PER_SAMPLE || header.numChannels < 1 || header.numChannels > 2)
+		{
+			Log::WriteLine("^1[WAV] Unsupported format {}", FilePath.c_str());
+			task->Status = AsyncStatus::Failure;
+			return;
+		}
 		FileSize = header.chunkSize;
 		Samples = header.subchunk2Size;
 		Rate = header.sampleRate;
 
-		int channels = 1;
-		int downRate = 8000;
-
 		std::vector<short> pcm(Samples / sizeof(short));
-		Input.read(reinterpret_cast<char *>(pcm.data()), Samples);
+		Input.read(reinterpret_cast<char *>(pcm.data()), pcm.size() * sizeof(short));
+		pcm.resize(Input.gcount() / sizeof(short));
 
-		std::vector<short> monoData = Audio::StereoToMono(pcm.data(), pcm.size());
-		Buffer = Audio::Resample(monoData.data(), monoData.size(), channels, Rate, downRate);
-
-		ProcessPackets();
+		Load(pcm.data(), pcm.size(), header.numChannels, Rate);
 		IsLoaded = true;
 		task->Status = AsyncStatus::Successful;
 	}
@@ -52,7 +54,7 @@ namespace SR
 			return;
 
 		Output.open(path, std::ios_base::binary);
-		WriteHeader(Output, 1, 8000, Buffer.size() * sizeof(short));
+		WriteHeader(Output, 1, SPEEX_RATE, Buffer.size() * sizeof(short));
 		Output.write(reinterpret_cast<char *>(Buffer.data()), Buffer.size() * sizeof(short));
 	}
 

@@ -1,6 +1,6 @@
 #include "Application.hpp"
 
-#include "Audio/Speex.hpp"
+#include "Audio/Voice.hpp"
 #include "Commands/Container.hpp"
 #include "Game/Demo/DemoContainer.hpp"
 #include "System/Debug.hpp"
@@ -15,7 +15,7 @@ namespace SR
 		Environment::Build();
 
 		Netchan::Initialize();
-		Speex::Initialize();
+		Voice::Initialize();
 		DemoContainer::Initialize();
 		CommandsContainer::Initialize();
 		Debug::Initialize();
@@ -25,6 +25,7 @@ namespace SR
 	{
 		Log::WriteLine("^5[SR] Shutdown");
 
-		Speex::Shutdown();
+		Async::Shutdown();
+		Voice::Shutdown();
 	}
 }

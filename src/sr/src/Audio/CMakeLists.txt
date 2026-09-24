@@ -3,6 +3,8 @@ target_sources(SR PRIVATE
 	Audio.cpp
 	MP3.hpp
 	MP3.cpp
+	Opus.hpp
+	Opus.cpp
 	Speex.hpp
 	Speex.cpp
 	Streamable.hpp

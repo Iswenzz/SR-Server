@@ -28,7 +28,7 @@ namespace SR
 
 		try
 		{
-			while (Reader->Next())
+			while (!task->IsCancelled() && Reader->Next())
 			{
 				DemoFrame frame = { 0 };
 
@@ -104,12 +104,10 @@ namespace SR
 		if (serverInfos.empty())
 			return;
 
-		int index = 0;
+		Version = 1;
 		auto it = std::find(serverInfos.begin(), serverInfos.end(), "sr_demo_version");
-		if (it != serverInfos.end())
-			index = std::distance(serverInfos.begin(), it);
-
-		Version = index > 0 ? std::stoi(serverInfos[index + 1]) : 1;
+		if (it != serverInfos.end() && std::next(it) != serverInfos.end())
+			std::from_chars(std::next(it)->data(), std::next(it)->data() + std::next(it)->size(), Version);
 	}
 
 	int Demo::GetVelocity(DemoFrame &frame)
@@ -119,7 +117,7 @@ namespace SR
 			frameVelocity =
 				sqrtl((frame.ps.velocity[0] * frame.ps.velocity[0]) + (frame.ps.velocity[1] * frame.ps.velocity[1]));
 
-		hudelem_t velocityHud;
+		hudelem_t velocityHud{};
 		for (int i = 0; i < MAX_HUDELEMENTS; i++)
 		{
 			if ((std::abs(frame.ps.hud.current[i].fontScale - 1.6) <= 0.05
@@ -250,7 +248,8 @@ namespace SR
 
 		for (const std::string &command : commands)
 		{
-			if (command[0] == 'h')
+			// h "<message>"
+			if (command.size() >= 4 && command[0] == 'h')
 				chat.push_back(command.substr(3, command.size() - 4));
 		}
 		return chat;

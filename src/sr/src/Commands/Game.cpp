@@ -82,7 +82,7 @@ namespace SR
 		else
 			file = streamable->second;
 
-		file->StreamPosition = 0;
+		file->Rewind();
 		Voice::Radio = file;
 
 		Log::WriteLine("^5[Radio] Playing {}", name.c_str());

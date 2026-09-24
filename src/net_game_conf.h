@@ -26,9 +26,11 @@
 
 /* Protocols at or below this speak the stock 1.7 wire format: no reliable
    transport, no configclient/configdata, and no configDataAcknowledge in the
-   packet header. Matches the <= 7 test the update proxy has always used. */
+   packet header. Matches the <= 7 test the update proxy has always used, but
+   bounded below so a missing or garbage "protocol" key (atoi gives 0) is not
+   taken for a stock client. */
 #define MAX_LEGACY_PROTOCOL_VERSION 7
-#define IS_LEGACY_PROTOCOL(v) ((v) <= MAX_LEGACY_PROTOCOL_VERSION)
+#define IS_LEGACY_PROTOCOL(v) ((v) >= LEGACY_PROTOCOL_VERSION && (v) <= MAX_LEGACY_PROTOCOL_VERSION)
 
 /* Stock clients size their configstring table for 1.7; CoD4X doubled it. */
 #define MAX_LEGACY_CONFIGSTRINGS 2442

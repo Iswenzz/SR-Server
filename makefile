@@ -32,7 +32,7 @@ LINUX_DEFINES=_GNU_SOURCE
 COMMON_FLAGS=-m32 -msse2 -mfpmath=sse -Wall -fno-omit-frame-pointer -fmax-errors=15 -Wno-unused-result -Isrc
 CFLAGS=$(COMMON_FLAGS) -std=gnu11
 CXXFLAGS=$(COMMON_FLAGS) -std=gnu++11
-SR_LLIBS=SR CoD4DM1 samplerate speex
+SR_LLIBS=SR CoD4DM1 samplerate speex opus
 WIN_LFLAGS=-m32 -g -Wl,--nxcompat,--stack,0x800000 -static-libgcc -static -lm
 WIN_LLIBS=tomcrypt mbedtls mbedcrypto mbedx509 ws2_32 wsock32 iphlpapi gdi32 winmm crypt32 stdc++ dbghelp ole32 $(SR_LLIBS)
 LINUX_LFLAGS=-m32 -g -static-libgcc -rdynamic -Wl,-rpath=./

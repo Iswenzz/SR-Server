@@ -13,12 +13,15 @@ namespace SR
 
 	void Player::Initialize()
 	{
-		DemoPlayer = CreateScope<class DemoPlayer>(shared_from_this());
-		PMove = CreateScope<class PMove>(shared_from_this());
+		DemoPlayer = CreateScope<class DemoPlayer>(this);
+		PMove = CreateScope<class PMove>(this);
 		SaveState = CreateScope<playerState_t>();
 	}
 
-	void Player::Disconnect() { }
+	void Player::Disconnect()
+	{
+		DemoPlayer->Stop();
+	}
 
 	void Player::Spawn()
 	{
@@ -100,8 +103,12 @@ namespace SR
 		return &cl->frames[cl->netchan.outgoingSequence & PACKET_MASK];
 	}
 
-	Ref<Player> &Player::Get(int num)
+	// Script methods can pass any entity number, not only a client one.
+	const Ref<Player> &Player::Get(int num)
 	{
+		static const Ref<Player> none;
+		if (num < 0 || num >= MAX_CLIENTS)
+			return none;
 		return List[num];
 	}
 

@@ -32,12 +32,12 @@ void SR_InitializePlayer(client_t *cl)
 
 void SR_FreePlayer(client_t *cl)
 {
-	if (!DEFINED_CLIENT(cl))
+	const int num = cl - svs.clients;
+	if (!Player::Get(num))
 		return;
 
-	auto &player = Player::Get(cl->gentity->s.number);
-	if (player)
-		player->Disconnect();
+	Player::List[num]->Disconnect();
+	Player::List[num].reset();
 }
 
 void SR_ClientSpawn(gclient_t *client)
@@ -45,7 +45,10 @@ void SR_ClientSpawn(gclient_t *client)
 	if (!DEFINED_GCLIENT(client))
 		return;
 
-	Player::Get(client->ps.clientNum)->Spawn();
+	// ClientBegin can spawn from script before SR_InitializePlayer runs.
+	const auto &player = Player::Get(client->ps.clientNum);
+	if (player)
+		player->Spawn();
 }
 
 void SR_CalculateFrame(client_t *cl, usercmd_t *cmd)
@@ -53,8 +56,9 @@ void SR_CalculateFrame(client_t *cl, usercmd_t *cmd)
 	if (!DEFINED_CLIENT(cl))
 		return;
 
-	int time = cmd->serverTime - cl->lastUsercmd.serverTime;
-	Player::Get(cl->gentity->s.number)->CalculateFrame(time);
+	const auto &player = Player::Get(cl->gentity->s.number);
+	if (player)
+		player->CalculateFrame(cmd->serverTime - cl->lastUsercmd.serverTime);
 }
 
 void SR_InitializeEntity(gentity_t *ent)
@@ -103,7 +107,10 @@ void SR_DemoUpdateEntity(client_t *cl, snapshotInfo_t *snapInfo, msg_t *msg, con
 	entityState_t *to, qboolean force)
 {
 	const auto &player = Player::Get(cl->gentity->client->ps.clientNum);
-	player->DemoPlayer->UpdateEntity(snapInfo, msg, time, from, to, force);
+	if (player)
+		player->DemoPlayer->UpdateEntity(snapInfo, msg, time, from, to, force);
+	else
+		MSG_WriteDeltaEntity(snapInfo, msg, time, from, to, force);
 }
 
 void SR_DemoButton(client_t *cl, usercmd_t *cmd)
@@ -133,47 +140,57 @@ void SR_Print(conChannel_t channel, char *msg)
 
 int SR_PmoveGetSpeed(playerState_t *ps)
 {
-	return Player::Get(ps->clientNum)->PMove->GetSpeed();
+	const auto &player = Player::Get(ps->clientNum);
+	return player ? player->PMove->GetSpeed() : ps->speed;
 }
 
 float SR_PmoveGetSpeedScale(playerState_t *ps)
 {
-	return Player::Get(ps->clientNum)->PMove->GetSpeedScale();
+	const auto &player = Player::Get(ps->clientNum);
+	return player ? player->PMove->GetSpeedScale() : ps->moveSpeedScaleMultiplier;
 }
 
 int SR_PmoveGetGravity(playerState_t *ps)
 {
-	return Player::Get(ps->clientNum)->PMove->GetGravity();
+	const auto &player = Player::Get(ps->clientNum);
+	return player ? player->PMove->GetGravity() : ps->gravity;
 }
 
 float SR_PmoveGetJumpHeight(unsigned int num)
 {
-	return Player::Get(num)->PMove->GetJumpHeight();
+	const auto &player = Player::Get(num);
+	return player ? player->PMove->GetJumpHeight() : 0;
 }
 
 void SR_JumpUpdateSurface(playerState_s *ps, pml_t *pml)
 {
-	Player::Get(ps->clientNum)->PMove->JumpUpdateSurface(pml);
+	const auto &player = Player::Get(ps->clientNum);
+	if (player)
+		player->PMove->JumpUpdateSurface(pml);
 }
 
 int SR_PmoveWalkMove(pmove_t *pm, pml_t *pml)
 {
-	return Player::Get(pm->ps->clientNum)->PMove->WalkMove(pm, pml);
+	const auto &player = Player::Get(pm->ps->clientNum);
+	return player && player->PMove->WalkMove(pm, pml);
 }
 
 int SR_PmoveAirMove(pmove_t *pm, pml_t *pml)
 {
-	return Player::Get(pm->ps->clientNum)->PMove->AirMove(pm, pml);
+	const auto &player = Player::Get(pm->ps->clientNum);
+	return player && player->PMove->AirMove(pm, pml);
 }
 
 int SR_PmoveGroundTrace(pmove_t *pm, pml_t *pml)
 {
-	return Player::Get(pm->ps->clientNum)->PMove->GroundTrace(pm, pml);
+	const auto &player = Player::Get(pm->ps->clientNum);
+	return player && player->PMove->GroundTrace(pm, pml);
 }
 
 int SR_PmoveCrashLand(playerState_s *ps, pml_t *pml)
 {
-	return Player::Get(ps->clientNum)->PMove->CrashLand(ps, pml);
+	const auto &player = Player::Get(ps->clientNum);
+	return player && player->PMove->CrashLand(ps, pml);
 }
 
 void SR_NetchanDebugSize(int size)

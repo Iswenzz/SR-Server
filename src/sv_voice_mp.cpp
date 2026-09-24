@@ -116,7 +116,9 @@ extern "C"
 		int talker;
 		int packetCount;
 
-		if (SV_VoiceEnabled())
+		// Relayed as is to everyone, which only works for bare Speex. Clients that speak the relay framing
+		// wait until they are in game.
+		if (SV_VoiceEnabled() && !*Info_ValueForKey(cl->userinfo, "sr_voice"))
 		{
 			talker = cl - svs.clients;
 			packetCount = MSG_ReadByte(msg);

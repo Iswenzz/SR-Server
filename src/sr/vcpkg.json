@@ -8,6 +8,7 @@
 		"glm",
 		"libsamplerate",
 		"minimp3",
+		"opus",
 		"speex"
 	],
 	"overrides": [
@@ -15,6 +16,7 @@
 		{ "name": "glm", "version": "1.0.1#2" },
 		{ "name": "libsamplerate", "version": "0.2.2#1" },
 		{ "name": "minimp3", "version": "2021-11-30" },
+		{ "name": "opus", "version": "1.5.2#1" },
 		{ "name": "speex", "version": "1.2.1" }
 	]
 }

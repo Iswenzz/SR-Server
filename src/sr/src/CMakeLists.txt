@@ -22,6 +22,7 @@ target_link_libraries(SR PUBLIC
 	glm::glm
 	libsamplerate::libsamplerate
 	minimp3::minimp3
+	Opus::opus
 	speex::speex)
 
 target_include_directories(SR PUBLIC

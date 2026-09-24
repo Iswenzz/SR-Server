@@ -25,17 +25,17 @@ namespace SR
 	int DemoContainer::RegisterSpeedrunDemo(const std::string &map, const std::string &playerId, const std::string &run,
 		const std::string &mode, const std::string &way)
 	{
+		// Called from script: a filesystem exception here would terminate the server.
 		std::vector<std::string> demos{};
 		for (const std::string &folder : Directories)
 		{
+			std::error_code error;
 			const auto demoDirectory = std::filesystem::path(folder) / playerId / map;
-			if (!std::filesystem::exists(demoDirectory))
-				continue;
 
-			for (const auto &entry : std::filesystem::directory_iterator(demoDirectory.string()))
+			for (const auto &entry : std::filesystem::directory_iterator(demoDirectory, error))
 			{
-				const std::string &entryName = entry.path().filename().string();
-				if (entryName == run + ".dm_1" || entryName.find(run + "_") != std::string::npos)
+				const std::string entryName = entry.path().filename().string();
+				if (entryName == run + ".dm_1" || entryName.starts_with(run + "_"))
 					demos.push_back(entry.path().string());
 			}
 		}
@@ -51,7 +51,8 @@ namespace SR
 				Demos.erase(id);
 			}
 			const auto demoPath = demos.at(0);
-			const auto relativePath = std::filesystem::relative(demoPath, Environment::ModDirectory).string();
+			std::error_code error;
+			const auto relativePath = std::filesystem::relative(demoPath, Environment::ModDirectory, error).string();
 			Demos.insert({ id, CreateRef<Demo>(id, demoPath) });
 			Log::WriteLine("^5[DemoContainer] Register demo {} {}", id.c_str(), relativePath.c_str());
 			return 1;

@@ -34,6 +34,18 @@ namespace SR
 		return mono;
 	}
 
+	std::vector<short> Audio::MonoToStereo(const std::vector<short> &mono)
+	{
+		std::vector<short> stereo(mono.size() * 2);
+
+		for (size_t i = 0; i < mono.size(); i++)
+		{
+			stereo[i * 2] = mono[i];
+			stereo[i * 2 + 1] = mono[i];
+		}
+		return stereo;
+	}
+
 	std::vector<short> Audio::Resample(short *buffer, int samples, int channels, int rate, int newRate)
 	{
 		double ratio = static_cast<double>(newRate) / static_cast<double>(rate);
@@ -43,7 +55,7 @@ namespace SR
 			newSamples++;
 
 		std::vector<float> decodedData(samples);
-		std::vector<float> sampledData(samples);
+		std::vector<float> sampledData(newSamples);
 
 		src_short_to_float_array(buffer, decodedData.data(), decodedData.size());
 
@@ -55,7 +67,9 @@ namespace SR
 		data.output_frames = newSamples / channels;
 		data.src_ratio = ratio;
 
-		if (int error = src_simple(&data, SRC_LINEAR, channels); error)
+		// Only radio files come through here, on a worker, so the slow sinc filter costs nothing in game.
+		// Linear interpolation aliases the treble into audible grit on music.
+		if (int error = src_simple(&data, SRC_SINC_BEST_QUALITY, channels); error)
 		{
 			Log::WriteLine("^1[Voice] Downsample error {}", src_strerror(error));
 			return {};

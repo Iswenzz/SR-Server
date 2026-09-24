@@ -310,6 +310,7 @@ bool DB_CanFreeXAssetPool(int type)
 	case ASSET_TYPE_CLIPMAP:
 	case ASSET_TYPE_CLIPMAP_PVS:
 	case ASSET_TYPE_COMWORLD:
+	case ASSET_TYPE_GAMEWORLD_SP:
 	case ASSET_TYPE_GAMEWORLD_MP:
 	case ASSET_TYPE_GFXWORLD:
 		return false;

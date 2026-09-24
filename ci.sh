@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 ROOT="$(pwd)"
 CC=gcc
 CXX=g++

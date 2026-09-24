@@ -6,7 +6,7 @@
 
 namespace SR
 {
-	PMove::PMove(const Ref<class Player> &player)
+	PMove::PMove(class Player *player)
 	{
 		Player = player;
 	}

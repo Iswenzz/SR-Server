@@ -3,6 +3,7 @@
 
 namespace SR
 {
+	// Encoded twice when it loads: narrowband Speex for stock clients, stereo Opus for IW3SR clients.
 	class Streamable
 	{
 	public:
@@ -14,17 +15,20 @@ namespace SR
 		int Samples = 0;
 		int Rate = 0;
 		std::vector<VoicePacket_t> StreamPackets;
+		std::vector<VoicePacket_t> OpusPackets;
 		int StreamPosition = 0;
-		bool IsLoaded = false;
+		int OpusPosition = 0;
+		std::atomic<bool> IsLoaded = false;
 
 		Streamable() = default;
 		virtual ~Streamable();
 
 		virtual void Open(const Ref<AsyncTask>& task) = 0;
 		virtual void Save(const std::string& path) = 0;
-		VoicePacket_t Play();
 
-		void ProcessPackets();
+		void Load(const short* pcm, size_t samples, int channels, int rate);
+		void Rewind();
+		bool IsStreamStart();
 		bool IsStreamEnd();
 	};
 }

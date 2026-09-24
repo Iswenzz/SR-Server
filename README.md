@@ -47,7 +47,7 @@ _Pre-Requisites:_
 
 1. [CMake](https://cmake.org/) and [vcpkg](https://vcpkg.io/en/)
 
-_Pre-Requisites:_
+_Packages:_
 
     sudo dpkg --add-architecture i386
     sudo apt update

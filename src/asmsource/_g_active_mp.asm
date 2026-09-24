@@ -1412,7 +1412,7 @@ ClientThink_real_100:
 	; mov eax, g_speed 					; cvar_t* g_speed;
 	; mov eax, [eax]					; deref
 	; mov eax, [eax+0xc]				; eax = g_speed.integer;
-	mov ecx, [edi+0x24]					; playerState_t* ps
+	mov [esp], edi						; playerState_t* ps (cdecl, edi = &client->ps)
 	call SR_PmoveGetSpeed				; int SR_PmoveGetSpeed(playerState_t *ps)
 	; -------------------------- SR_PmoveGetSpeed --------------------------
 	mov [edi+0x60], eax

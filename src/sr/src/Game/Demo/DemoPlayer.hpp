@@ -9,7 +9,7 @@ namespace SR
 	{
 	public:
 		Ref<class Demo> Demo;
-		Ref<class Player> Player;
+		class Player* Player = nullptr;
 		gentity_t* Entity = nullptr;
 		int Velocity = 0;
 		std::string Weapon = "";
@@ -20,7 +20,7 @@ namespace SR
 		int LastServerTime = 0;
 		bool HasFrame = false;
 
-		DemoPlayer(const Ref<class Player>& player);
+		DemoPlayer(class Player* player);
 		~DemoPlayer() = default;
 
 		void Play(const Ref<class Demo>& demo);
