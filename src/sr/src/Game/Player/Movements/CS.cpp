@@ -200,7 +200,7 @@ namespace SR
 			return false;
 		if (pm->ps->viewHeightTarget == 11 || pm->ps->viewHeightTarget == 40)
 			return false;
-		if (!(pm->cmd.buttons & PMF_JUMP_HELD))
+		if (!(pm->cmd.buttons & KEY_MASK_JUMP))
 			return false;
 
 		float jump_velocity =

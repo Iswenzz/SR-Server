@@ -2,6 +2,12 @@
 
 #define player_spectateSpeedScale 1.0f
 
+// The glm mirrors are reinterpret_cast from the engine structs.
+static_assert(sizeof(playerState_tt) == sizeof(playerState_t));
+static_assert(sizeof(trace_tt) == sizeof(trace_t));
+static_assert(sizeof(pml_tt) == sizeof(pml_t));
+static_assert(sizeof(pmove_tt) == sizeof(pmove_t));
+
 namespace SR
 {
 	vec3 CoD4::Normalize(const vec3 &v)
@@ -67,7 +73,7 @@ namespace SR
 	int CoD4::CorrectAllSolid(pmove_tt *pm, pml_tt *pml, trace_tt *trace)
 	{
 		playerState_tt *ps = pm->ps;
-		vec3 origin = ps->origin;
+		vec3 &origin = ps->origin;
 
 		float sx, sy, sz;
 		unsigned int byteOffset = 0;

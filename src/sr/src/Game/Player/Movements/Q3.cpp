@@ -98,7 +98,7 @@ namespace SR
 		if (pm->ps->velocity[0] == 0.0f && pm->ps->velocity[1] == 0.0f)
 			return;
 
-		StepSlideMove(pm, pml, false);
+		StepSlideMove(pm, pml, false, cpm);
 	}
 
 	void Q3::AirMove(pmove_tt* pm, pml_tt* pml, bool cpm)
@@ -155,7 +155,7 @@ namespace SR
 		if (pml->groundPlane)
 			ClipVelocity(ps->velocity, pml->groundTrace.normal, ps->velocity, OVERCLIP);
 
-		StepSlideMove(pm, pml, true);
+		StepSlideMove(pm, pml, true, cpm);
 	}
 
 	void Q3::GroundTrace(pmove_tt* pm, pml_tt* pml)
@@ -321,7 +321,7 @@ namespace SR
 			return false;
 		if (pm->ps->viewHeightTarget == 11 || pm->ps->viewHeightTarget == 40)
 			return false;
-		if (!(pm->cmd.buttons & PMF_JUMP_HELD))
+		if (!(pm->cmd.buttons & KEY_MASK_JUMP))
 			return false;
 
 		float jump_velocity =
@@ -578,7 +578,7 @@ namespace SR
 		return bumpcount != 0;
 	}
 
-	void Q3::StepSlideMove(pmove_tt* pm, pml_tt* pml, bool gravity)
+	void Q3::StepSlideMove(pmove_tt* pm, pml_tt* pml, bool gravity, bool cpm)
 	{
 		trace_tt trace = {};
 		vec3 start_o, start_v, endpos;
@@ -611,8 +611,10 @@ namespace SR
 		PM_playerTrace(pm, &trace, start_o, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
 		up = { 0, 0, 1 };
 
-		// Never step up when you still have up velocity
-		if (pm->ps->velocity[2] > 0.0f && (trace.fraction == 1.0f || glm::dot(trace.normal, up) < 0.7f))
+		// Never step up when you still have up velocity, except CPM which allows a slow rise,
+		// 25 frames of gravity at Defrag's fixed 8 ms step, so ledges catch near the apex
+		const float stepVelocity = cpm ? 25.0f * static_cast<float>(pm->ps->gravity) * 0.008f : 0.0f;
+		if (pm->ps->velocity[2] > stepVelocity && (trace.fraction == 1.0f || glm::dot(trace.normal, up) < 0.7f))
 			return;
 
 		down_o = pm->ps->origin;
