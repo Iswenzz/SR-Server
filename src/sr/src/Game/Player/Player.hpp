@@ -30,8 +30,6 @@ namespace SR
 		int VoiceCount = 0;
 		int VoiceTime = 0;
 		int LastVoiceTime = 0;
-		bool ProximityEnabled = false;
-		bool RadioEnabled = false;
 
 		Player(client_t *cl);
 		~Player() = default;

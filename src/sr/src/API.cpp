@@ -33,6 +33,8 @@ void SR_InitializePlayer(client_t *cl)
 void SR_FreePlayer(client_t *cl)
 {
 	const int num = cl - svs.clients;
+	Voice::ResetClient(num);
+
 	if (!Player::Get(num))
 		return;
 

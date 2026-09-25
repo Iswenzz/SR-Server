@@ -8,8 +8,9 @@
 #include <cmath>
 #include <optional>
 
-#define VOICE_AMPLIFY 2
-#define PROXIMITY_DISTANCE 1500
+// In game units, where one is an inch: full volume within about 5 m, silent past about 38 m.
+#define PROXIMITY_MIN 200.0f
+#define PROXIMITY_MAX 1500.0f
 
 // Just over the 366 ms the client buffers before it starts playing.
 #define RADIO_LEAD_PACKETS 20
@@ -28,7 +29,7 @@ namespace SR
 
 	static int ProximityStep(float gain)
 	{
-		const long step = std::lround(gain / VOICE_AMPLIFY * SPEEX_PROXIMITY_STEPS);
+		const long step = std::lround(gain * SPEEX_PROXIMITY_STEPS);
 		return static_cast<int>(std::clamp<long>(step, 0, SPEEX_PROXIMITY_STEPS));
 	}
 
@@ -37,7 +38,24 @@ namespace SR
 		// In the systeminfo, where IW3SR clients look for it on every gamestate.
 		Relay = Cvar_RegisterBool("sr_voiceRelay", qtrue, CVAR_SYSTEMINFO | CVAR_ROM,
 			"Relays Opus voice between the clients that speak it");
+		ProximityMin = Cvar_RegisterFloat("voice_proximityMin", PROXIMITY_MIN, 0.0f, 100000.0f, 0,
+			"Distance in units within which proximity voice plays at full volume");
+		ProximityMax = Cvar_RegisterFloat("voice_proximityMax", PROXIMITY_MAX, 0.0f, 100000.0f, 0,
+			"Distance in units past which proximity voice is silent");
 		Speex::Initialize();
+
+		for (int i = 0; i < MAX_CLIENTS; i++)
+			ResetClient(i);
+	}
+
+	// Proximity is on until a player turns it off; the radio stays off until they turn it on.
+	void Voice::ResetClient(int clientNum)
+	{
+		if (clientNum < 0 || clientNum >= MAX_CLIENTS)
+			return;
+
+		ProximityEnabled[clientNum] = true;
+		RadioEnabled[clientNum] = false;
 	}
 
 	void Voice::Shutdown()
@@ -80,8 +98,7 @@ namespace SR
 			if (cl && cl->state == CS_ACTIVE && entity->client
 				&& entity->client->sess.sessionState != SESS_STATE_INTERMISSION)
 			{
-				const auto &player = Player::Get(i);
-				if (!player || !player->RadioEnabled)
+				if (!RadioEnabled[i])
 					continue;
 
 				const bool relay = IsRelayClient(i);
@@ -131,13 +148,13 @@ namespace SR
 		return true;
 	}
 
-	VoicePacket_t Voice::RelayPacket(const VoiceFrame &frame, float gain)
+	VoicePacket_t Voice::RelayPacket(const VoiceFrame &frame, float gain, bool positional)
 	{
 		VoicePacket_t packet{};
 		if (frame.Size > VOICE_MAX_PACKET - VOICE_HEADER_SIZE)
 			return packet;
 
-		packet.data[0] = static_cast<char>(frame.Codec);
+		packet.data[0] = static_cast<char>(frame.Codec | (positional ? VOICE_POSITIONAL : 0));
 		packet.data[1] = static_cast<char>(std::clamp<long>(std::lround(gain * VOICE_UNITY_GAIN), 0, 255));
 		std::memcpy(packet.data + VOICE_HEADER_SIZE, frame.Data, frame.Size);
 		packet.dataSize = frame.Size + VOICE_HEADER_SIZE;
@@ -161,15 +178,17 @@ namespace SR
 		return { Speex::Decode(talker, frame.Data, frame.Size) };
 	}
 
+	// Full volume within the near distance, then squared to silence at the far one, which falls off the
+	// way loudness does with distance: about -12 dB halfway, -40 dB at nine tenths. Never louder than
+	// the talker, so nothing is pushed into clipping.
 	float Voice::ProximityGain(gentity_t *talker, gentity_t *entity)
 	{
-		float distance = fabs(VectorDistance(talker->client->ps.origin, entity->client->ps.origin));
+		const float distance = fabs(VectorDistance(talker->client->ps.origin, entity->client->ps.origin));
+		const float nearest = ProximityMin->value;
+		const float farthest = std::max(ProximityMax->value, nearest + 1.0f);
 
-		if (distance > PROXIMITY_DISTANCE)
-			distance = PROXIMITY_DISTANCE;
-		distance = 1 - (distance / PROXIMITY_DISTANCE);
-
-		return distance * VOICE_AMPLIFY;
+		const float t = std::clamp((distance - nearest) / (farthest - nearest), 0.0f, 1.0f);
+		return (1.0f - t) * (1.0f - t);
 	}
 
 	// IW3SR listeners get the talker's own packet with the gain in its header, so neither codec is ever
@@ -211,14 +230,12 @@ namespace SR
 				if (SV_ClientHasClientMuted(i, talkerNum) || !SV_ClientWantsVoiceData(i))
 					continue;
 
-				const auto &player = Player::Get(i);
-				const bool proximity =
-					entity->client->sess.sessionState == SESS_STATE_PLAYING && player && player->ProximityEnabled;
+				const bool proximity = entity->client->sess.sessionState == SESS_STATE_PLAYING && ProximityEnabled[i];
 				const float gain = proximity ? ProximityGain(talker, entity) : 1.0f;
 
 				if (IsRelayClient(i))
 				{
-					VoicePacket_t relayed = RelayPacket(frame, gain);
+					VoicePacket_t relayed = RelayPacket(frame, gain, proximity && entity != talker);
 					if (relayed.dataSize > 0)
 						SV_QueueVoicePacket(talkerNum, i, &relayed);
 					continue;
@@ -237,7 +254,7 @@ namespace SR
 					if (!decoded)
 						decoded = Decode(talkerNum, frame);
 
-					const float stepGain = static_cast<float>(step) / SPEEX_PROXIMITY_STEPS * VOICE_AMPLIFY;
+					const float stepGain = static_cast<float>(step) / SPEEX_PROXIMITY_STEPS;
 					packets.emplace();
 
 					for (auto &pcm : *decoded)

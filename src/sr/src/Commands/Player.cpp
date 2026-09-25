@@ -1,5 +1,7 @@
 #include "Player.hpp"
 
+#include "Audio/Voice.hpp"
+
 namespace SR
 {
 	void PlayerCommands::Register()
@@ -164,14 +166,12 @@ namespace SR
 	{
 		CHECK_PARAMS(1, "Usage: RadioEnable(<state>)");
 
-		Ref<Player> player = Player::Get(num.entnum);
-
-		if (!player)
+		if (num.entnum >= MAX_CLIENTS)
 		{
-			Scr_ObjectError("Player not found.\n");
+			Scr_ObjectError("Not a player.\n");
 			return;
 		}
-		player->RadioEnabled = Scr_GetInt(0);
+		Voice::RadioEnabled[num.entnum] = Scr_GetInt(0);
 	}
 
 	void PlayerCommands::SaveState(scr_entref_t num)
@@ -186,17 +186,17 @@ namespace SR
 		*player->SaveState = *player->ps;
 	}
 
+	// Reached from the mod's connect callback, before SR_InitializePlayer has made the Player, so it
+	// writes Voice's per-slot flag rather than needing one.
 	void PlayerCommands::ProximityEnable(scr_entref_t num)
 	{
 		CHECK_PARAMS(1, "Usage: ProximityEnable(<state>)");
 
-		Ref<Player> player = Player::Get(num.entnum);
-
-		if (!player)
+		if (num.entnum >= MAX_CLIENTS)
 		{
-			Scr_ObjectError("Player not found.\n");
+			Scr_ObjectError("Not a player.\n");
 			return;
 		}
-		player->ProximityEnabled = Scr_GetInt(0);
+		Voice::ProximityEnabled[num.entnum] = Scr_GetInt(0);
 	}
 }
