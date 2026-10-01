@@ -602,6 +602,7 @@ extern "C"
 	qboolean SV_Acceptclient(int);
 	client_t *SV_ReadPackets(netadr_t *from, unsigned short qport);
 	void SV_VoicePacket(netadr_t *from, msg_t *msg);
+	void SV_VRPacket(netadr_t *from, msg_t *msg);
 	void SV_UserVoice(client_t *cl, msg_t *msg);
 	void SV_PreGameUserVoice(client_t *cl, msg_t *msg);
 	// void SV_BuildClientSnapshot(client_t* cl);

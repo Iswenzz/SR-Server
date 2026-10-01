@@ -1587,6 +1587,10 @@ __optimize3 __regparm2 void SV_ConnectionlessPacket(netadr_t *from, msg_t *msg)
 	{
 		SV_VoicePacket(from, msg);
 	}
+	else if (!strcmp(c, "vr"))
+	{
+		SV_VRPacket(from, msg);
+	}
 	else if (!Q_strncmp("TSource Engine Query", (char *)&msg->data[4], 20))
 	{
 		SVC_SourceEngineQuery_Info(from, SV_Cmd_Argv(3));
@@ -4999,6 +5003,19 @@ void SV_VoicePacket(netadr_t *from, msg_t *msg)
 		else
 			SV_PreGameUserVoice(cl, msg);
 	}
+}
+
+// A VR state from an IW3SR client, found by its qport the way voice is.
+void SV_VRPacket(netadr_t *from, msg_t *msg)
+{
+	unsigned short qport;
+	client_t *cl;
+
+	qport = (unsigned short)MSG_ReadShort(msg);
+	cl = SV_ReadPackets(from, qport);
+
+	if (cl && cl->state >= CS_ACTIVE)
+		SR_VRPacket(cl, msg);
 }
 
 void __cdecl SV_FreeClientScriptId(client_t *cl)

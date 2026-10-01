@@ -7,6 +7,7 @@
 #include "Game/Map.hpp"
 #include "Game/Player/Player.hpp"
 #include "Game/Server.hpp"
+#include "Game/VR.hpp"
 #include "System/Debug.hpp"
 #include "System/Netchan.hpp"
 
@@ -34,6 +35,7 @@ void SR_FreePlayer(client_t *cl)
 {
 	const int num = cl - svs.clients;
 	Voice::ResetClient(num);
+	VR::ResetClient(num);
 
 	if (!Player::Get(num))
 		return;
@@ -94,6 +96,21 @@ void SR_Restart()
 void SR_BroadcastVoice(gentity_t *talker, VoicePacket_t *packet)
 {
 	Voice::BroadcastVoice(talker, packet);
+}
+
+// The rest of the datagram after its qport is the state.
+void SR_VRPacket(client_t *cl, msg_t *msg)
+{
+	if (!DEFINED_CLIENT(cl))
+		return;
+
+	uint8_t data[VR_MAX_STATE];
+	const int size = msg->cursize - msg->readcount;
+	if (size <= 0 || size > VR_MAX_STATE)
+		return;
+
+	MSG_ReadData(msg, data, size);
+	VR::Receive(cl, data, size);
 }
 
 qboolean SR_DemoIsPlaying(client_t *cl)

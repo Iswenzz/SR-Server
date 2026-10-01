@@ -5,6 +5,7 @@
 #include "Game/Demo/DemoContainer.hpp"
 #include "Game/Entity/Entity.hpp"
 #include "Game/Player/Player.hpp"
+#include "Game/VR.hpp"
 #include "System/Debug.hpp"
 #include "System/Vegas.hpp"
 
@@ -39,6 +40,7 @@ namespace SR
 		}
 		Map::Frame();
 		Voice::Frame();
+		VR::Frame();
 		Debug::FPS();
 	}
 }
