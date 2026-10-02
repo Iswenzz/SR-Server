@@ -99,6 +99,11 @@ void SR_BroadcastVoice(gentity_t *talker, VoicePacket_t *packet)
 }
 
 // The rest of the datagram after its qport is the state.
+qboolean SR_IsVoiceRelayClient(client_t *cl)
+{
+	return Voice::IsRelayClient(cl - svs.clients) ? qtrue : qfalse;
+}
+
 void SR_VRPacket(client_t *cl, msg_t *msg)
 {
 	if (!DEFINED_CLIENT(cl))

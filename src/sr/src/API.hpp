@@ -20,6 +20,7 @@ void SR_ClientSpawn(gclient_t *client);
 void SR_CalculateFrame(client_t *cl, usercmd_t *cmd);
 void SR_BroadcastVoice(gentity_t *talker, struct VoicePacket_t *packet);
 void SR_VRPacket(client_t *cl, msg_t *msg);
+qboolean SR_IsVoiceRelayClient(client_t *cl);
 
 void SR_NetchanDebugSize(int size);
 void SR_SetMapAmbient(const char *alias, int volume);

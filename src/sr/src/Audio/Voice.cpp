@@ -4,6 +4,7 @@
 #include "Opus.hpp"
 
 #include "Game/Player/Player.hpp"
+#include "Utils/Utils.hpp"
 
 #include <cmath>
 #include <optional>
@@ -120,13 +121,10 @@ namespace SR
 			Radio = nullptr;
 	}
 
-	// IW3SR advertises sr_voice in its userinfo. Everything else is a stock client, reading bare Speex.
+	// IW3SR speaks the relay framing since 1.8.1. Everything else is a stock client, reading bare Speex.
 	bool Voice::IsRelayClient(int clientNum)
 	{
-		if (clientNum < 0 || clientNum >= MAX_CLIENTS)
-			return false;
-
-		return atoi(Info_ValueForKey(svs.clients[clientNum].userinfo, "sr_voice")) >= 1;
+		return Utils::ClientVersion(clientNum, 1, 8, 1);
 	}
 
 	bool Voice::ReadFrame(int talker, VoicePacket_t *packet, VoiceFrame &frame)

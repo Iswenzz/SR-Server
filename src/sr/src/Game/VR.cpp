@@ -1,4 +1,5 @@
 #include "VR.hpp"
+#include "Utils/Utils.hpp"
 
 // A followed player's head is shown for this long after its last state, then its aim again.
 #define VR_STALE_TIME 500
@@ -27,12 +28,10 @@ namespace SR
 		States[clientNum] = {};
 	}
 
+	// IW3SR draws VR players since 1.8.3; any other client would only print the datagrams as unknown.
 	bool VR::IsViewer(int clientNum)
 	{
-		if (clientNum < 0 || clientNum >= sv_maxclients->integer)
-			return false;
-
-		return atoi(Info_ValueForKey(svs.clients[clientNum].userinfo, "sr_vrView")) >= 1;
+		return clientNum < sv_maxclients->integer && Utils::ClientVersion(clientNum, 1, 8, 3);
 	}
 
 	// Checked only as far as relaying it safely needs: the clients that draw it parse the rest.

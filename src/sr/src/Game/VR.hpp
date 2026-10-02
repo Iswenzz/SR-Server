@@ -3,8 +3,8 @@
 
 // IW3SR clients in VR share where their head, hands and body trackers are as out of band "vr" datagrams:
 // the version, the parts present, the trackers present, the head's angles, then the poses. The server
-// keeps the head's angles for whoever follows that player, and relays the rest untouched to the clients
-// whose userinfo carries sr_vrView. MSG_WriteByte carries the size, so a state tops out at 255 bytes.
+// keeps the head's angles for whoever follows that player, and relays the rest untouched to the IW3SR
+// clients that draw it. MSG_WriteByte carries the size, so a state tops out at 255 bytes.
 #define VR_VERSION 1
 #define VR_MAX_STATE 255
 

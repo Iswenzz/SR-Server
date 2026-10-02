@@ -5,7 +5,7 @@ extern cvar_t *voice_localEcho;
 extern cvar_t *voice_global;
 extern cvar_t *voice_deadChat;
 
-// Clients whose userinfo carries sr_voice put these two bytes ahead of every voice packet, and get them
+// IW3SR clients from 1.8.1 put these two bytes ahead of every voice packet, and get them
 // back on everything sent to them: the codec, then the gain to play it at, where 64 is unity. MSG_WriteByte
 // carries the size, so a packet tops out at 255 bytes.
 #define VOICE_CODEC_SPEEX 0
