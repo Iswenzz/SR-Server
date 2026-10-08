@@ -838,6 +838,7 @@ void __cdecl CMod_LoadCollisionPartitions()
 	{
 		out->triCount = in->triCount;
 		out->borderCount = in->borderCount;
+		out->window = cm.vertCount > 0x10000 ? in->checkStamp : 0;
 		out->firstTri = in->firstTriIndex;
 		out->borders = &cm.borders[in->firstBorderIndex];
 

@@ -150,12 +150,13 @@ void CM_WalkAABB_Trees()
 			for (j = 0; j < pat->triCount; ++j)
 			{
 				uint16_t* vertset = &triIndice[3 * j];
-				FS_Printf(f, "Vertex1: %g %g %g\n", cm.verts[vertset[0]][0], cm.verts[vertset[0]][1],
-					cm.verts[vertset[0]][2]);
-				FS_Printf(f, "Vertex2: %g %g %g\n", cm.verts[vertset[1]][0], cm.verts[vertset[1]][1],
-					cm.verts[vertset[1]][2]);
-				FS_Printf(f, "Vertex3: %g %g %g\n", cm.verts[vertset[2]][0], cm.verts[vertset[2]][1],
-					cm.verts[vertset[2]][2]);
+				const vec3_t *verts = cm.verts + (cm.vertCount > 0x10000 ? pat->window * 64 : 0);
+				FS_Printf(f, "Vertex1: %g %g %g\n", verts[vertset[0]][0], verts[vertset[0]][1],
+					verts[vertset[0]][2]);
+				FS_Printf(f, "Vertex2: %g %g %g\n", verts[vertset[1]][0], verts[vertset[1]][1],
+					verts[vertset[1]][2]);
+				FS_Printf(f, "Vertex3: %g %g %g\n", verts[vertset[2]][0], verts[vertset[2]][1],
+					verts[vertset[2]][2]);
 			}
 		}
 	}

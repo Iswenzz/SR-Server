@@ -1,6 +1,8 @@
 ;Imports of cm_mesh:
 	extern Vec3NormalizeTo
 	extern cm
+	extern cm_triWindow
+	extern cm_triWindowCount
 
 ;Exports of cm_mesh:
 	global CM_DistanceSquaredBetweenSegments
@@ -15,6 +17,37 @@
 
 
 SECTION .text
+
+
+;IzFF: the vertex array the collision triangle eax points at counts its
+;indices from. Past 65536 vertices that is its partition's window, read from
+;cm_triWindow; eax in and out, every other register and the flags kept.
+CM_CollisionVertsFor:
+	pushfd
+	push ecx
+	push edx
+	mov ecx, cm
+	mov edx, [ecx+0x5c]
+	cmp dword [cm_triWindow], 0x0
+	jz CM_CollisionVertsFor_done
+	sub eax, [ecx+0x64]
+	push edx
+	xor edx, edx
+	mov ecx, 0x6
+	div ecx
+	pop edx
+	cmp eax, [cm_triWindowCount]
+	jae CM_CollisionVertsFor_done
+	mov ecx, [cm_triWindow]
+	movzx eax, word [ecx+eax*2]
+	imul eax, eax, 0x300
+	add edx, eax
+CM_CollisionVertsFor_done:
+	mov eax, edx
+	pop edx
+	pop ecx
+	popfd
+	ret
 
 
 ;CM_DistanceSquaredBetweenSegments(float const*, float const*, float const*, float const*)
@@ -678,7 +711,11 @@ CM_PositionTestInAabbTree_r_30:
 	mulss xmm1, xmm1
 	movss [ebp-0xf0], xmm1
 	mov eax, cm
-	mov edx, [eax+0x5c]
+	push eax
+	mov eax, edi
+	call CM_CollisionVertsFor
+	mov edx, eax
+	pop eax
 	movzx eax, word [edi]
 	lea eax, [eax+eax*2]
 	lea ebx, [edx+eax*4]
@@ -1003,7 +1040,11 @@ CM_PositionTestInAabbTree_r_170:
 	jmp CM_PositionTestInAabbTree_r_10
 CM_PositionTestInAabbTree_r_40:
 	mov edx, cm
-	mov ebx, [edx+0x5c]
+	push eax
+	mov eax, edi
+	call CM_CollisionVertsFor
+	mov ebx, eax
+	pop eax
 	movzx edx, word [edi]
 	lea edx, [edx+edx*2]
 	lea edx, [ebx+edx*4]
@@ -1695,7 +1736,11 @@ CM_TraceThroughAabbTree_r_70:
 CM_TraceThroughAabbTree_r_50:
 	mov edx, [ebp-0x90]
 	add edx, [ebx+0x64]
-	mov ecx, [ebx+0x5c]
+	push eax
+	mov eax, edx
+	call CM_CollisionVertsFor
+	mov ecx, eax
+	pop eax
 	movzx eax, word [edx]
 	lea eax, [eax+eax*2]
 	lea esi, [ecx+eax*4]
@@ -2007,7 +2052,11 @@ CM_TraceThroughAabbTree_r_220:
 CM_TraceThroughAabbTree_r_210:
 	mov edx, edi
 	add edx, [ebx+0x64]
-	mov ecx, [ebx+0x5c]
+	push eax
+	mov eax, edx
+	call CM_CollisionVertsFor
+	mov ecx, eax
+	pop eax
 	movzx eax, word [edx]
 	lea eax, [eax+eax*2]
 	lea ebx, [ecx+eax*4]

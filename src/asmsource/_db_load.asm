@@ -4,6 +4,7 @@
 	extern DB_ConvertOffsetToPointer
 	extern DB_AllocStreamPos
 	extern DB_PopStreamPos
+	extern DB_PushWorldVertexBlock
 	extern Load_XStringCustom
 	extern Load_ScriptStringCustom
 	extern DB_ConvertOffsetToAlias
@@ -13242,6 +13243,7 @@ Load_GfxWorldVertexData:
 	mov edx, [ebx]
 	test edx, edx
 	jz Load_GfxWorldVertexData_10
+	call DB_PushWorldVertexBlock
 	mov dword [esp], 0x3
 	call DB_AllocStreamPos
 	mov [ebx], eax
@@ -13257,6 +13259,7 @@ Load_GfxWorldVertexData:
 	mov [esp+0x4], ecx
 	mov dword [esp], 0x1
 	call Load_Stream
+	call DB_PopStreamPos
 	mov ebx, [varGfxWorldVertexData]
 Load_GfxWorldVertexData_10:
 	lea eax, [ebx+0x4]

@@ -117,8 +117,11 @@ typedef struct CollisionBorder
 #pragma pack(push, 4)
 typedef struct CollisionPartition
 {
-	char triCount;
-	char borderCount;
+	unsigned char triCount;
+	unsigned char borderCount;
+	/* IzFF: padding in stock. Past 65536 collision vertices, the window in steps
+	   of 64 this partition's indices count from. */
+	unsigned short window;
 	int firstTri;
 	CollisionBorder_t *borders;
 } CollisionPartition_t;

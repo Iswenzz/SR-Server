@@ -9,6 +9,9 @@
 #define PHYS_ALLOC_HIGH 1
 #define MAX_PHYSICAL_ALLOCATIONS 32
 #define PHYS_ALLOC_COUNT 2
+// 768 MB rather than the stock 328: converted maps load collision and zones
+// far past what stock maps need. The Windows build is large-address-aware.
+#define PHYS_MEMORY_SIZE 0x30000000u
 
 struct PhysicalMemoryAllocation
 {
@@ -249,13 +252,13 @@ extern "C"
 			Sys_EnterCriticalSection(CRITSECT_PHYSICAL_MEMORY);
 
 			g_physicalMemoryInit = true;
-			memory = _VirtualAlloc(0, 0x14800000u, 0x1000u, 4u);
+			memory = _VirtualAlloc(0, PHYS_MEMORY_SIZE, 0x1000u, 4u);
 			if (memory == NULL)
 			{
 				Sys_LeaveCriticalSection(CRITSECT_PHYSICAL_MEMORY);
 				Com_Error(ERR_FATAL, "PMem_Init(): not enough virtual memory within a single block available");
 			}
-			PMem_InitPhysicalMemory(&g_mem, "main", memory, 0x14800000u);
+			PMem_InitPhysicalMemory(&g_mem, "main", memory, PHYS_MEMORY_SIZE);
 
 			Sys_LeaveCriticalSection(CRITSECT_PHYSICAL_MEMORY);
 		}

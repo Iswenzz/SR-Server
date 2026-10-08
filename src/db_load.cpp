@@ -608,6 +608,13 @@ extern "C"
 		DB_SetStreamIndex(g_streamPosStack[g_streamPosStackIndex].index);
 	}
 
+	// IzFF's linker keeps a large world's vertices in block 5, which no stock zone sizes. Pushed
+	// either way, so Load_GfxWorldVertexData's pop always balances.
+	void __cdecl DB_PushWorldVertexBlock()
+	{
+		DB_PushStreamPos(g_streamBlocks[5].size ? 5 : g_streamPosIndex);
+	}
+
 	byte *__cdecl DB_AllocStreamPos(int alignment)
 	{
 		assert(g_streamPos);
@@ -1085,6 +1092,12 @@ void __cdecl DB_LoadXFileData(byte *pos, int count)
 
 		g_load.stream.next_in += 4;
 		g_load.stream.avail_in -= 4;
+		/* IzFF: 6 is 5 with a clipmap that addresses its collision vertices a
+		   window at a time, which the walkers here read. */
+		if (version == FASTFILE_VERSION + 1)
+		{
+			version = FASTFILE_VERSION;
+		}
 		if (version != FASTFILE_VERSION)
 		{
 			if (version >= FASTFILE_VERSION)

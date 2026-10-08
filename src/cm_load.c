@@ -162,6 +162,42 @@ void CM_InitAllThreadData()
 	}
 }
 
+/* IzFF: a map past 65536 collision vertices addresses them a window at a time;
+   the walkers in _cm_mesh.asm read each triangle's window from this table. */
+unsigned short *cm_triWindow = NULL;
+unsigned int cm_triWindowCount = 0;
+
+static void CM_BuildCollisionWindows()
+{
+	int index, tri;
+
+	free(cm_triWindow);
+	cm_triWindow = NULL;
+	cm_triWindowCount = 0;
+	if (cm.vertCount <= 0x10000 || !cm.partitions || cm.triCount <= 0)
+	{
+		return;
+	}
+
+	cm_triWindow = (unsigned short *)calloc(cm.triCount, sizeof(unsigned short));
+	if (!cm_triWindow)
+	{
+		Com_Error(ERR_DROP, "CM_LoadMap: no memory for %d collision windows", cm.triCount);
+	}
+	cm_triWindowCount = cm.triCount;
+	for (index = 0; index < cm.partitionCount; ++index)
+	{
+		const CollisionPartition_t *partition = &cm.partitions[index];
+		for (tri = partition->firstTri; tri < partition->firstTri + partition->triCount; ++tri)
+		{
+			if (tri >= 0 && tri < cm.triCount)
+			{
+				cm_triWindow[tri] = partition->window;
+			}
+		}
+	}
+}
+
 void __cdecl CM_LoadMap(const char *name, int *checksum)
 {
 	if (!name || !*name)
@@ -170,6 +206,7 @@ void __cdecl CM_LoadMap(const char *name, int *checksum)
 	}
 
 	CM_LoadMapData(name);
+	CM_BuildCollisionWindows();
 	CM_InitAllThreadData();
 	cm.isInUse = 1;
 	*checksum = cm.checksum;
