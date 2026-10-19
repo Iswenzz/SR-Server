@@ -1,5 +1,10 @@
 #include "DemoPlayer.hpp"
 
+#include "Utils/Utils.hpp"
+
+#define DEMO_STATE_VERSION 1
+#define DEMO_NAME_MAX 63
+
 namespace SR
 {
 	DemoPlayer::DemoPlayer(class Player *player)
@@ -7,12 +12,15 @@ namespace SR
 		Player = player;
 	}
 
-	void DemoPlayer::Play(const Ref<class Demo> &demo)
+	// An empty name is the one recorded in the demo.
+	void DemoPlayer::Play(const Ref<class Demo> &demo, const std::string &name)
 	{
 		Demo = demo;
+		Name = name.empty() ? demo->PlayerName : name;
 		FrameIndex = 0;
 		PreviousFrameIndex = 0;
 		Clock = 0;
+		Rate = 1;
 		LastServerTime = 0;
 		HasFrame = false;
 
@@ -83,7 +91,8 @@ namespace SR
 
 		int frameTime = LastServerTime ? svs.time - LastServerTime : 0;
 		LastServerTime = svs.time;
-		Clock += frameTime * speed * direction;
+		Rate = speed * direction;
+		Clock += frameTime * Rate;
 
 		// EOF forward, or rewound past the beginning
 		if (Clock < Demo->Frames.front().time || Clock > Demo->Frames.back().time)
@@ -129,6 +138,39 @@ namespace SR
 			frame.ps.viewangles[1] = std::lerp(frame.ps.viewangles[1], next.ps.viewangles[1], interpolate);
 		if (std::abs(frame.ps.viewangles[2] - next.ps.viewangles[2]) < 170)
 			frame.ps.viewangles[2] = std::lerp(frame.ps.viewangles[2], next.ps.viewangles[2], interpolate);
+	}
+
+	// The run timer at the playback clock: version 1 demos start 900ms into the run, later ones 100ms before it.
+	int DemoPlayer::RunTime() const
+	{
+		if (!Demo || !HasFrame)
+			return 0;
+		return std::max(0, static_cast<int>(Clock) + (Demo->Version == 1 ? 900 : -100));
+	}
+
+	// IW3SR shows the demo's state since 1.9.1; any other client would only print the datagrams as unknown.
+	// The server time is the snapshot's, so the client can carry the run time on between two of them.
+	void DemoPlayer::Send(client_t *cl) const
+	{
+		if (!Demo || !HasFrame || !Utils::ClientVersion(cl - svs.clients, 1, 9, 1))
+			return;
+
+		byte buffer[128];
+		msg_t msg;
+		MSG_Init(&msg, buffer, sizeof(buffer));
+		MSG_WriteString(&msg, "srdemo");
+		MSG_WriteByte(&msg, DEMO_STATE_VERSION);
+		MSG_WriteLong(&msg, svs.time);
+		MSG_WriteLong(&msg, RunTime());
+		MSG_WriteShort(&msg, static_cast<int>(std::round(Rate * 100)));
+		MSG_WriteShort(&msg, std::clamp(Velocity, 0, 0x7FFF));
+		MSG_WriteShort(&msg, std::clamp(CurrentFrame.fps, 0, 0x7FFF));
+		MSG_WriteByte(&msg, CurrentFrame.forwardmove);
+		MSG_WriteByte(&msg, CurrentFrame.rightmove);
+		MSG_WriteLong(&msg, CurrentFrame.buttons);
+		MSG_WriteString(&msg, Name.substr(0, DEMO_NAME_MAX).c_str());
+		if (!msg.overflowed)
+			NET_OutOfBandData(NS_SERVER, &cl->netchan.remoteAddress, msg.data, msg.cursize);
 	}
 
 	void DemoPlayer::Packet()
@@ -201,5 +243,18 @@ namespace SR
 		for (int i = PreviousFrameIndex + 1; i <= FrameIndex; i++)
 			for (const std::string &message : Demo->Frames.at(i).chat)
 				SV_SendServerCommand(Player->cl, "h \"^5[Demo] ^7%s\"", message.c_str());
+	}
+
+	// With each snapshot, to whoever sees a demo: the player watching it, and anyone following them. The
+	// snapshot is built by now and not yet sent.
+	void DemoPlayer::Snapshot(client_t *cl)
+	{
+		if (cl->state != CS_ACTIVE)
+			return;
+
+		const clientSnapshot_t *frame = &cl->frames[cl->netchan.outgoingSequence & PACKET_MASK];
+		const auto &player = Player::Get(frame->ps.clientNum);
+		if (player)
+			player->DemoPlayer->Send(cl);
 	}
 }

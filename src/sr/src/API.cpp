@@ -150,6 +150,7 @@ void SR_DemoButton(client_t *cl, usercmd_t *cmd)
 void SR_DemoFrame(client_t *cl)
 {
 	DemoRecord::Frame(cl);
+	DemoPlayer::Snapshot(cl);
 }
 
 void SR_Packet(netadr_t *from, client_t *cl, msg_t *msg)

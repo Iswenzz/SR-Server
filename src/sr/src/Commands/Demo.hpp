@@ -14,6 +14,7 @@ namespace SR
 		static void GetSpeedrunVelocity(scr_entref_t num);
 		static void GetDemoVersion(scr_entref_t num);
 		static void GetDemoTimer(scr_entref_t num);
+		static void GetDemoRunTime(scr_entref_t num);
 		static void GetDemoWeapon(scr_entref_t num);
 		static void GetDemoRightMove(scr_entref_t num);
 		static void GetDemoForwardMove(scr_entref_t num);

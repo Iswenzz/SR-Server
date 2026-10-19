@@ -15,6 +15,7 @@ namespace SR
 		Scr_AddMethod("getdemoforwardmove", GetDemoForwardMove, qfalse);
 		Scr_AddMethod("getdemobuttons", GetDemoButtons, qfalse);
 		Scr_AddMethod("getdemotimer", GetDemoTimer, qfalse);
+		Scr_AddMethod("getdemoruntime", GetDemoRunTime, qfalse);
 		Scr_AddMethod("stopdemo", StopDemo, qfalse);
 
 		Scr_AddFunction("registerspeedrundemo", RegisterSpeedrunDemo, qfalse);
@@ -34,12 +35,19 @@ namespace SR
 		Scr_AddInt(DemoContainer::RegisterSpeedrunDemo(map, playerId, runId, mode, way));
 	}
 
+	// The name is the one IW3SR shows for the demo; without one, or when it is undefined, the demo's own.
 	void DemoCommands::PlayDemo(scr_entref_t num)
 	{
-		CHECK_PARAMS(1, "Usage: PlayDemo(<id>)");
+		const int params = Scr_GetNumParam();
+		if (params < 1 || params > 2)
+		{
+			Scr_Error("Usage: PlayDemo(<id>, <name?>)");
+			return;
+		}
 
 		Ref<Player> player = Player::Get(num.entnum);
 		std::string id = Scr_GetString(0);
+		std::string name = params > 1 && Scr_GetType(1) == VAR_STRING ? Scr_GetString(1) : "";
 
 		if (!player)
 		{
@@ -51,7 +59,7 @@ namespace SR
 		auto demo = DemoContainer::Demos.find(id);
 		if (demo != std::end(DemoContainer::Demos) && demo->second->IsLoaded && !demo->second->Frames.empty())
 		{
-			player->DemoPlayer->Play(demo->second);
+			player->DemoPlayer->Play(demo->second, name);
 			Scr_AddEntity(player->DemoPlayer->Entity);
 		}
 	}
@@ -162,6 +170,20 @@ namespace SR
 			return;
 		}
 		Scr_AddInt(player->DemoPlayer->Demo ? player->DemoPlayer->CurrentFrame.time : 0);
+	}
+
+	void DemoCommands::GetDemoRunTime(scr_entref_t num)
+	{
+		CHECK_PARAMS(0, "Usage: GetDemoRunTime()");
+
+		Ref<Player> player = Player::Get(num.entnum);
+
+		if (!player)
+		{
+			Scr_ObjectError("Player not found.\n");
+			return;
+		}
+		Scr_AddInt(player->DemoPlayer->RunTime());
 	}
 
 	void DemoCommands::GetDemoButtons(scr_entref_t num)
