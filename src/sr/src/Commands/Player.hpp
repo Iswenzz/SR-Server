@@ -15,6 +15,7 @@ namespace SR
 		static void LoadState(scr_entref_t num);
 		static void ProximityEnable(scr_entref_t num);
 		static void RadioEnable(scr_entref_t num);
+		static void RewindState(scr_entref_t num);
 		static void SaveState(scr_entref_t num);
 		static void SetJumpOrigin(scr_entref_t num);
 		static void SurfaceFlags(scr_entref_t num);

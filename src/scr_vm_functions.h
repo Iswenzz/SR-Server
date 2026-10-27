@@ -76,6 +76,7 @@ void PlayerCmd_spawn(scr_entref_t arg);
 void GScr_NewHudElem();
 void GScr_NewClientHudElem();
 void HECmd_SetText(scr_entref_t entnum);
+void HECmd_SetTenthsTimerUpFrom(scr_entref_t hud_elem_num);
 void HECmd_ScaleOverTime(scr_entref_t hud_elem_num);
 void HECmd_SetPulseFX(scr_entref_t hud_elem_num);
 void GScr_Spawn();

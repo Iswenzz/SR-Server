@@ -2045,6 +2045,31 @@ void HECmd_SetText(scr_entref_t entnum)
 	element->elem.text = G_LocalizedStringIndex(buffer);
 }
 
+/* SetTenthsTimerUp waits its time out and only then counts up from zero; this counts up from it at once. */
+void HECmd_SetTenthsTimerUpFrom(scr_entref_t hud_elem_num)
+{
+	game_hudelem_t *element;
+	int elapsed;
+
+	if (Scr_GetNumParam() != 1)
+		Scr_Error("USAGE: <hudelem> SetTenthsTimerUpFrom( <seconds> );");
+
+	if (hud_elem_num.classnum != 1)
+	{
+		Scr_ObjectError("not a hud element");
+		return;
+	}
+	element = &g_hudelems[hud_elem_num.entnum];
+
+	elapsed = (int)(Scr_GetFloat(0) * 1000.0f + 0.5f);
+	if (elapsed < 0)
+		elapsed = 0;
+
+	HudElem_ClearTypeSettings(element);
+	element->elem.type = HE_TYPE_TENTHS_TIMER_UP;
+	element->elem.time = level.time - elapsed;
+}
+
 void HECmd_SetPulseFX(scr_entref_t hud_elem_num)
 {
 	game_hudelem_t *hudelem_t = NULL;

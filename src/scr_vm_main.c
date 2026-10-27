@@ -383,6 +383,7 @@ void Scr_AddStockMethods()
 	Scr_AddMethod("settimerup", HECmd_SetTimerUp, 0);
 	Scr_AddMethod("settenthstimer", HECmd_SetTenthsTimer, 0);
 	Scr_AddMethod("settenthstimerup", HECmd_SetTenthsTimerUp, 0);
+	Scr_AddMethod("settenthstimerupfrom", HECmd_SetTenthsTimerUpFrom, 0);
 	Scr_AddMethod("setclock", HECmd_SetClock, 0);
 	Scr_AddMethod("setclockup", HECmd_SetClockUp, 0);
 	Scr_AddMethod("setvalue", HECmd_SetValue, 0);
