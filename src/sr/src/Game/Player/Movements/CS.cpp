@@ -142,8 +142,9 @@ namespace SR
 			pml->walking = false;
 			return;
 		}
-		// Slopes that are too steep will not be considered onground
-		if (trace.normal[2] < SURF_SLOPE_NORMAL)
+		// Slopes that are too steep will not be considered onground. The capsule's rounded bottom
+		// tilts the normal on terrain edges, which the engine still flags walkable
+		if (!trace.walkable && trace.normal[2] < SURF_SLOPE_NORMAL)
 		{
 			pm->ps->groundEntityNum = ENTITYNUM_NONE;
 			pml->groundPlane = false;
@@ -515,7 +516,9 @@ namespace SR
 
 		trace_tt trace = {};
 		PM_playerTrace(pm, &trace, vecPos, pm->mins, pm->maxs, vecEndPos, pm->ps->clientNum, pm->tracemask);
-		if (!trace.startsolid && !trace.allsolid)
+
+		// Starting in solid still steps up, as in stock, so a player sunk into the floor pops out of it
+		if (!trace.allsolid)
 			pm->ps->origin = glm::mix(vecPos, vecEndPos, trace.fraction);
 
 		const float stepSize = pm->ps->origin[2] - vecPos[2];
@@ -527,6 +530,7 @@ namespace SR
 		vecEndPos = pm->ps->origin;
 		vecEndPos[2] -= stepSize;
 
+		trace = {};
 		PM_playerTrace(pm, &trace, pm->ps->origin, pm->mins, pm->maxs, vecEndPos, pm->ps->clientNum, pm->tracemask);
 		if (!trace.allsolid)
 			pm->ps->origin = glm::mix(pm->ps->origin, vecEndPos, trace.fraction);
@@ -545,7 +549,7 @@ namespace SR
 		// cancel the rise and pin the player there
 		const bool stepLostHeight = vecVel[2] > 0.0f && vecDownPos[2] > vecUpPos[2];
 
-		if (downDist > upDist || stepLostHeight || trace.normal[2] < SURF_SLOPE_NORMAL)
+		if (downDist > upDist || stepLostHeight || (!trace.walkable && trace.normal[2] < SURF_SLOPE_NORMAL))
 		{
 			pm->ps->origin = vecDownPos;
 			pm->ps->velocity = vecDownVel;
