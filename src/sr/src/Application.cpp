@@ -3,6 +3,7 @@
 #include "Audio/Voice.hpp"
 #include "Commands/Container.hpp"
 #include "Game/Demo/DemoContainer.hpp"
+#include "Game/Player/PMove.hpp"
 #include "Game/VR.hpp"
 #include "System/Debug.hpp"
 #include "System/Environment.hpp"
@@ -18,6 +19,7 @@ namespace SR
 		Netchan::Initialize();
 		Voice::Initialize();
 		VR::Initialize();
+		PMove::Register();
 		DemoContainer::Initialize();
 		CommandsContainer::Initialize();
 		Debug::Initialize();

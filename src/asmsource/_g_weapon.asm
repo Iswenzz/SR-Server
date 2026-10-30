@@ -1,5 +1,6 @@
 ;Imports of g_weapon:
 	extern bulletPriorityMap
+	extern SR_SkipFireWeapon
 	extern G_LocationalTrace
 	extern melee_debug
 	extern colorRed
@@ -559,6 +560,12 @@ FireWeapon:
 	push ebx
 	sub esp, 0x9c
 	mov ebx, [ebp+0x8]
+	; -------------------------- SR_SkipFireWeapon --------------------------
+	mov [esp], ebx				; ent
+	call SR_SkipFireWeapon
+	test eax, eax
+	jnz FireWeapon_20			; nonzero -> the Q3 missile is pmove's, skip the stock projectile
+	; -------------------------- SR_SkipFireWeapon --------------------------
 	mov eax, [ebx+0x15c]
 	test dword [eax+0xb0], 0x300
 	jz FireWeapon_10

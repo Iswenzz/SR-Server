@@ -78,6 +78,7 @@ namespace SR
 		VoiceChat();
 
 		DemoPlayer->Frame();
+		PMove->NotifyWeapons();
 		RecordRewind();
 	}
 

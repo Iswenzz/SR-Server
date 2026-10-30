@@ -6,6 +6,7 @@
 #include "Game/Demo/DemoContainer.hpp"
 #include "Game/Entity/Entity.hpp"
 #include "Game/Player/Player.hpp"
+#include "Game/Player/Q3WeaponWorld.hpp"
 #include "Game/VR.hpp"
 #include "System/Debug.hpp"
 #include "System/Vegas.hpp"
@@ -22,6 +23,7 @@ namespace SR
 		Player::List = {};
 		Entity::List = {};
 		Layout::Restart();
+		Q3WeaponWorld::Reset();
 		DemoContainer::Demos.clear();
 	}
 
@@ -40,6 +42,7 @@ namespace SR
 				Vegas::Frame(player);
 			}
 		}
+		Q3WeaponWorld::Frame();
 		Map::Frame();
 		Voice::Frame();
 		VR::Frame();

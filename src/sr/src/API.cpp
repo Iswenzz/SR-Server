@@ -7,6 +7,7 @@
 #include "Game/Layout.hpp"
 #include "Game/Map.hpp"
 #include "Game/Player/Player.hpp"
+#include "Game/Player/Q3WeaponWorld.hpp"
 #include "Game/Server.hpp"
 #include "Game/VR.hpp"
 #include "System/Debug.hpp"
@@ -77,6 +78,11 @@ void SR_InitializeEntity(gentity_t *ent)
 qboolean SR_LayoutHidden(int clientNum, gentity_t *ent)
 {
 	return Layout::Hidden(clientNum, ent) ? qtrue : qfalse;
+}
+
+qboolean SR_SnapshotHidden(int receiverNum, int viewedNum, gentity_t *ent)
+{
+	return Q3WeaponWorld::Hidden(receiverNum, viewedNum, ent) ? qtrue : qfalse;
 }
 
 void SR_SetMapAmbient(const char *alias, int volume)
@@ -204,6 +210,26 @@ int SR_PmoveWalkMove(pmove_t *pm, pml_t *pml)
 {
 	const auto &player = Player::Get(pm->ps->clientNum);
 	return player && player->PMove->WalkMove(pm, pml);
+}
+
+void SR_PmoveWeapon(pmove_t *pm, pml_t *pml)
+{
+	const auto &player = Player::Get(pm->ps->clientNum);
+	if (player)
+		player->PMove->Weapon(pm, pml);
+	else
+		PMove::StockWeapon(pm, pml);
+}
+
+// The Q3 weapons fire from pmove in Q3CPMW and from GSC elsewhere, so the stock projectile, and the rocket
+// launcher kick that comes with it, is never wanted.
+int SR_SkipFireWeapon(gentity_t *ent)
+{
+	if (!ent->client)
+		return qfalse;
+
+	const auto &player = Player::Get(ent->s.number);
+	return player && player->PMove->IsQ3Weapon(player->ps->weapon);
 }
 
 int SR_PmoveAirMove(pmove_t *pm, pml_t *pml)

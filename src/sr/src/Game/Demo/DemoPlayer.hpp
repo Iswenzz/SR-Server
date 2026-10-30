@@ -5,6 +5,8 @@
 
 namespace SR
 {
+	struct Q3WeaponState;
+
 	class DemoPlayer
 	{
 	public:
@@ -21,9 +23,10 @@ namespace SR
 		float Rate = 1;
 		int LastServerTime = 0;
 		bool HasFrame = false;
+		Scope<Q3WeaponState> Weapons;
 
 		DemoPlayer(class Player* player);
-		~DemoPlayer() = default;
+		~DemoPlayer();
 
 		void Play(const Ref<class Demo>& demo, const std::string& name);
 		void Stop();
@@ -37,6 +40,7 @@ namespace SR
 
 		void Packet();
 		void Frame();
+		void SimulateWeapons();
 
 		static void Snapshot(client_t* cl);
 	};

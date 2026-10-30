@@ -175,6 +175,16 @@ struct pmove_tt
 	char pad2[3];
 };
 
+enum weaponstate_t
+{
+	WEAPON_READY = 0x0,
+	WEAPON_RAISING = 0x1,
+	WEAPON_RAISING_ALTSWITCH = 0x2,
+	WEAPON_DROPPING = 0x3,
+	WEAPON_DROPPING_QUICK = 0x4,
+	WEAPON_FIRING = 0x5,
+};
+
 enum pmType_t
 {
 	PM_NORMAL = 0x0,
@@ -337,6 +347,7 @@ IZ_C
 		const vec3& end, int pass_entity_num, int content_mask);
 	void PM_StepSlideMove(pmove_tt * pm, pml_tt * pml, bool gravity);
 	void PM_AddTouchEnt(pmove_tt * pm, int entity_num);
+	void PM_Weapon(pmove_tt * pm, pml_tt * pml);
 	void REGPARM2 PM_Friction(playerState_tt * ps, pml_tt * pml);
 	void REGPARM2 PM_GroundTrace(pmove_tt * pm, pml_tt * pml);
 	void PM_ProjectVelocity(const vec3& normal, const vec3& velIn, vec3& velOut);

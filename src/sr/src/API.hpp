@@ -17,6 +17,7 @@ void SR_InitializePlayer(client_t *cl);
 void SR_FreePlayer(client_t *cl);
 void SR_InitializeEntity(gentity_t *ent);
 qboolean SR_LayoutHidden(int clientNum, gentity_t *ent);
+qboolean SR_SnapshotHidden(int receiverNum, int viewedNum, gentity_t *ent);
 void SR_ClientSpawn(gclient_t *client);
 void SR_CalculateFrame(client_t *cl, usercmd_t *cmd);
 void SR_BroadcastVoice(gentity_t *talker, struct VoicePacket_t *packet);
@@ -40,6 +41,8 @@ float SR_PmoveGetJumpHeight(unsigned int num);
 void SR_JumpUpdateSurface(playerState_t *ps, struct pml_t *pml);
 int SR_PmoveWalkMove(struct pmove_t *pm, struct pml_t *pml);
 int SR_PmoveAirMove(struct pmove_t *pm, struct pml_t *pml);
+void SR_PmoveWeapon(struct pmove_t *pm, struct pml_t *pml);
+int SR_SkipFireWeapon(gentity_t *ent);
 int SR_PmoveGroundTrace(struct pmove_t *pm, struct pml_t *pml);
 int SR_PmoveCrashLand(playerState_t *ps, struct pml_t *pml);
 

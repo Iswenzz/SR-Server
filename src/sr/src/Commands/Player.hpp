@@ -7,6 +7,7 @@ namespace SR
 	{
 	public:
 		static void Register();
+		static void DrawsQ3Weapons(scr_entref_t num);
 		static void GetDamageTimer(scr_entref_t num);
 		static void GetViewHeightLerpDown(scr_entref_t num);
 		static void GetViewHeightLerpTarget(scr_entref_t num);
@@ -18,6 +19,7 @@ namespace SR
 		static void RewindState(scr_entref_t num);
 		static void SaveState(scr_entref_t num);
 		static void SetJumpOrigin(scr_entref_t num);
+		static void SetQ3Weapons(scr_entref_t num);
 		static void SurfaceFlags(scr_entref_t num);
 		static void VoiceChatButtonPressed(scr_entref_t num);
 	};

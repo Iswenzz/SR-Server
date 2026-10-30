@@ -90,6 +90,7 @@
 	extern SR_PmoveAirMove
 	extern SR_PmoveGroundTrace
 	extern SR_PmoveCrashLand
+	extern SR_PmoveWeapon
 
 ;Exports of bg_pmove:
 	global viewLerp_CrouchStand
@@ -6003,7 +6004,7 @@ Pmove_300:
 	lea edx, [ebp-0x108]
 	mov [esp+0x4], edx
 	mov [esp], edi
-	call PM_Weapon
+	call SR_PmoveWeapon			; SR: runs PM_Weapon, then the Q3 missiles
 	jmp Pmove_310
 Pmove_2680:
 	mov edx, [esi+0xc]
@@ -6397,7 +6398,7 @@ Pmove_590:
 	lea edx, [ebp-0x108]
 	mov [esp+0x4], edx
 	mov [esp], edi
-	call PM_Weapon
+	call SR_PmoveWeapon			; SR: runs PM_Weapon, then the Q3 missiles
 	jmp Pmove_310
 Pmove_2660:
 	mov eax, [esi+0xc]
@@ -7444,7 +7445,7 @@ Pmove_1860:
 	lea ebx, [ebp-0x108]
 	mov [esp+0x4], ebx
 	mov [esp], edi
-	call PM_Weapon
+	call SR_PmoveWeapon			; SR: runs PM_Weapon, then the Q3 missiles
 	mov ebx, [edi]
 	movss xmm1, dword [edi+0xe4]
 	mov eax, bg_foliagesnd_minspeed

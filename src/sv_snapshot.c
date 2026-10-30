@@ -8,6 +8,9 @@
 #include "sys_main.h"
 #include "g_sv_shared.h"
 #include "cm_public.h"
+
+// The client a snapshot is being built for; the snapshot functions only carry the followed player
+static int sv_snapshotReceiver;
 #include "g_shared.h"
 
 #include <stdint.h>
@@ -654,7 +657,8 @@ static void SV_AddCachedEntitiesVisibleFromPoint(int from_num_entities, int from
 	{
 		aent = &svs.cachedSnapshotEntities[(e + from_first_entity) % maxCachedSnapshotEntities];
 		if ((1 << (clientNum & 31)) & aent->r.clientMask[clientNum >> 5] || aent->s.number == clientNum
-			|| SR_LayoutHidden(clientNum, SV_GentityNum(aent->s.number)))
+			|| SR_LayoutHidden(clientNum, SV_GentityNum(aent->s.number))
+			|| SR_SnapshotHidden(sv_snapshotReceiver, clientNum, SV_GentityNum(aent->s.number)))
 		{
 			continue;
 		}
@@ -742,7 +746,7 @@ static void SV_AddEntitiesVisibleFromPoint(float *origin, int clientNum, snapsho
 		if (!ent->r.broadcastTime)
 		{
 			if (ent->r.svFlags & 1 || (1 << (clientNum & 31)) & ent->r.clientMask[clientNum >> 5]
-				|| SR_LayoutHidden(clientNum, ent))
+				|| SR_LayoutHidden(clientNum, ent) || SR_SnapshotHidden(sv_snapshotReceiver, clientNum, ent))
 			{
 				continue;
 			}
@@ -913,6 +917,7 @@ static void SV_BuildClientSnapshot(client_t *client)
 	frame->first_client = svs.nextSnapshotClients;
 
 	clientNum = client - svs.clients;
+	sv_snapshotReceiver = clientNum;
 
 	archiveTime = G_GetClientArchiveTime(clientNum);
 

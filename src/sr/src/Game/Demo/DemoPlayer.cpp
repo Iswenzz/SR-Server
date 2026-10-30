@@ -1,5 +1,8 @@
 #include "DemoPlayer.hpp"
 
+#include "Game/Player/Movements/Q3Weapons.hpp"
+#include "Game/Player/PMove.hpp"
+#include "Game/Player/Q3WeaponWorld.hpp"
 #include "Utils/Utils.hpp"
 
 #define DEMO_STATE_VERSION 1
@@ -10,7 +13,10 @@ namespace SR
 	DemoPlayer::DemoPlayer(class Player *player)
 	{
 		Player = player;
+		Weapons = CreateScope<Q3WeaponState>();
 	}
+
+	DemoPlayer::~DemoPlayer() = default;
 
 	// An empty name is the one recorded in the demo.
 	void DemoPlayer::Play(const Ref<class Demo> &demo, const std::string &name)
@@ -23,6 +29,8 @@ namespace SR
 		Rate = 1;
 		LastServerTime = 0;
 		HasFrame = false;
+		*Weapons = {};
+		Q3WeaponWorld::Clear(Player->ps->clientNum, true);
 
 		Entity = G_Spawn();
 		Scr_SetString(&Entity->classname, scr_const.script_origin);
@@ -36,6 +44,8 @@ namespace SR
 		Demo.reset();
 		Entity = nullptr;
 		HasFrame = false;
+		*Weapons = {};
+		Q3WeaponWorld::Clear(Player->ps->clientNum, true);
 	}
 
 	void DemoPlayer::UpdateEntity(snapshotInfo_t *snapInfo, msg_t *msg, const int time, entityState_t *from,
@@ -243,6 +253,57 @@ namespace SR
 		for (int i = PreviousFrameIndex + 1; i <= FrameIndex; i++)
 			for (const std::string &message : Demo->Frames.at(i).chat)
 				SV_SendServerCommand(Player->cl, "h \"^5[Demo] ^7%s\"", message.c_str());
+
+		SimulateWeapons();
+	}
+
+	// Replays the recorded Q3 shots with the missile code pmove runs, for the viewer to see. The blasts land on a
+	// copy of the recorded state, so nobody is pushed, and GSC never hears of them.
+	void DemoPlayer::SimulateWeapons()
+	{
+		static_assert(sizeof(playerState_tt) == sizeof(playerState_t));
+		const int owner = Player->ps->clientNum;
+
+		if (!Player->PMove->HasQ3Weapons() || FrameIndex < PreviousFrameIndex)
+		{
+			*Weapons = {};
+			Q3WeaponWorld::Clear(owner, true);
+			return;
+		}
+		const bool cpm = Player->PMove->IsQ3Cpm();
+		Q3WeaponEvents events;
+
+		for (int i = std::max(PreviousFrameIndex + 1, 1); i <= FrameIndex; i++)
+		{
+			const DemoFrame &previous = Demo->Frames.at(i - 1);
+			const DemoFrame &frame = Demo->Frames.at(i);
+
+			playerState_tt ps;
+			std::memcpy(&ps, &frame.ps, sizeof(ps));
+			ps.pm_type = PM_NORMAL;
+
+			pmove_tt pm = {};
+			pm.ps = &ps;
+			pm.cmd.serverTime = frame.ps.commandTime;
+			pm.handler = 1;
+
+			Q3Weapons::Detonate(&pm, *Weapons, cpm, &events);
+
+			const int index = static_cast<int>(frame.ps.weapon);
+			if (!Q3Weapons::Fired(&ps, previous.ps.eventSequence) || index <= 0
+				|| index > static_cast<int>(Demo->Weapons.size()))
+				continue;
+
+			const int weapon = Q3Weapons::Find(Demo->Weapons[index - 1].c_str());
+			if (weapon < 0)
+				continue;
+
+			pml_tt pml = {};
+			pml.msec = frame.ps.commandTime - previous.ps.commandTime;
+			Q3Weapons::Fire(&pm, &pml, *Weapons, weapon, 0, cpm, &events);
+		}
+		if (!events.empty())
+			Q3WeaponWorld::Events(owner, events, level.time - CurrentFrame.ps.commandTime, true);
 	}
 
 	// With each snapshot, to whoever sees a demo: the player watching it, and anyone following them. The

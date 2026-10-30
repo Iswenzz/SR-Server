@@ -73,6 +73,8 @@ namespace SR
 		Scope<class PMove> PMove;
 		Scope<class DemoPlayer> DemoPlayer;
 		int SurfaceFlags = 0;
+		bool Q3HitPlayers = false;
+		bool Q3ShowOthers = false;
 
 		int FPS = 0;
 		int FrameStackIndex = 0;

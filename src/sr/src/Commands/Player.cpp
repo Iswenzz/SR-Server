@@ -1,6 +1,7 @@
 #include "Player.hpp"
 
 #include "Audio/Voice.hpp"
+#include "Utils/Utils.hpp"
 
 namespace SR
 {
@@ -10,12 +11,14 @@ namespace SR
 		Scr_AddMethod("getviewheightlerpdown", GetViewHeightLerpDown, qfalse);
 		Scr_AddMethod("getviewheightlerptarget", GetViewHeightLerpTarget, qfalse);
 		Scr_AddMethod("getviewheightlerptime", GetViewHeightLerpTime, qfalse);
+		Scr_AddMethod("drawsq3weapons", DrawsQ3Weapons, qfalse);
 		Scr_AddMethod("loadstate", LoadState, qfalse);
 		Scr_AddMethod("proximityenable", ProximityEnable, qfalse);
 		Scr_AddMethod("radioenable", RadioEnable, qfalse);
 		Scr_AddMethod("rewindstate", RewindState, qfalse);
 		Scr_AddMethod("savestate", SaveState, qfalse);
 		Scr_AddMethod("setjumporigin", SetJumpOrigin, qfalse);
+		Scr_AddMethod("setq3weapons", SetQ3Weapons, qfalse);
 		Scr_AddMethod("surfaceflags", SurfaceFlags, qfalse);
 		Scr_AddMethod("voicechatbuttonpressed", VoiceChatButtonPressed, qfalse);
 		Scr_AddMethod("weaponstate", GetWeaponState, qfalse);
@@ -31,6 +34,19 @@ namespace SR
 			return;
 		}
 		Scr_AddBool(player->Voice);
+	}
+
+	// Whether the client draws the Q3 missiles it predicts: IW3SR does from 1.10.0.
+	void PlayerCommands::DrawsQ3Weapons(scr_entref_t num)
+	{
+		Ref<Player> player = Player::Get(num.entnum);
+
+		if (!player)
+		{
+			Scr_ObjectError("Player not found.\n");
+			return;
+		}
+		Scr_AddBool(Utils::ClientVersion(num.entnum, 1, 10, 0));
 	}
 
 	void PlayerCommands::SurfaceFlags(scr_entref_t num)
@@ -58,6 +74,22 @@ namespace SR
 			return;
 		}
 		player->ps->jumpOriginZ = origin;
+	}
+
+	// Whether the player's Q3 missiles hit and push other players, and whether others see them.
+	void PlayerCommands::SetQ3Weapons(scr_entref_t num)
+	{
+		CHECK_PARAMS(2, "Usage: SetQ3Weapons(<hitPlayers>, <showOthers>)\n");
+
+		Ref<Player> player = Player::Get(num.entnum);
+
+		if (!player)
+		{
+			Scr_ObjectError("Player not found.\n");
+			return;
+		}
+		player->Q3HitPlayers = Scr_GetInt(0);
+		player->Q3ShowOthers = Scr_GetInt(1);
 	}
 
 	void PlayerCommands::GetViewHeightLerpDown(scr_entref_t num)
