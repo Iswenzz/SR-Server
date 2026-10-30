@@ -207,6 +207,12 @@ namespace SR
 		Player->ps->pm_type = originalPS.pm_type;
 		Player->ps->eFlags = originalPS.eFlags;
 		Player->ps->otherFlags = originalPS.otherFlags;
+
+		// The recorded events would become the viewer's entity events, and everyone around would hear the demo's shots.
+		Player->ps->eventSequence = originalPS.eventSequence;
+		Player->ps->oldEventSequence = originalPS.oldEventSequence;
+		memcpy(Player->ps->events, originalPS.events, sizeof(Player->ps->events));
+		memcpy(Player->ps->eventParms, originalPS.eventParms, sizeof(Player->ps->eventParms));
 		Player->ps->pm_flags &= ~PMF_PRONING;
 		Player->ps->pm_flags &= ~PMF_CROUCHING;
 		Vector2Copy(originalPS.viewAngleClampBase, Player->ps->viewAngleClampBase);
