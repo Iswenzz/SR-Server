@@ -1126,6 +1126,11 @@ void __cdecl SV_PointTraceToEntity(struct pointtrace_t *clip, svEntity_t *check,
 
 		if (inp != NULL && inp->baseEntity != ENTITYNUM_NONE)
 		{
+			// Point traces skip G_ShouldEntitiesClip, so the other layout's brushwork is filtered here
+			if (SR_LayoutHidden(inp->baseEntity, touch) || SR_LayoutHidden(inp->parentEntity, touch))
+			{
+				return;
+			}
 			if (inp->ignoreSelf && entnum == inp->baseEntity)
 			{
 				return;
