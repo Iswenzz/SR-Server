@@ -4,6 +4,7 @@
 #include "Audio/Voice.hpp"
 #include "Game/Demo/DemoRecord.hpp"
 #include "Game/Entity/Entity.hpp"
+#include "Game/Layout.hpp"
 #include "Game/Map.hpp"
 #include "Game/Player/Player.hpp"
 #include "Game/Server.hpp"
@@ -71,6 +72,11 @@ void SR_InitializeEntity(gentity_t *ent)
 		return;
 
 	Entity::Add(ent);
+}
+
+qboolean SR_LayoutHidden(int clientNum, gentity_t *ent)
+{
+	return Layout::Hidden(clientNum, ent) ? qtrue : qfalse;
 }
 
 void SR_SetMapAmbient(const char *alias, int volume)

@@ -116,6 +116,9 @@ extern "C"
 
 	qboolean G_ShouldEntitiesClip(moveclip_t *clip, int touchNum, gentity_t *touch)
 	{
+		if (SR_LayoutHidden(clip->passEntityNum, touch) || SR_LayoutHidden(clip->passOwnerNum, touch))
+			return qfalse;
+
 		if (clip->passEntityNum < 64 && clip->contentmask & CONTENTS_PLAYERCLIP)
 		{
 			if (g_entities[clip->passEntityNum].client->sess.cs.team == TEAM_FREE)
@@ -340,6 +343,8 @@ extern "C"
 				continue;
 			}
 			hit = SV_GentityNum(touch[i]);
+			if (SR_LayoutHidden(passEntityNum, hit))
+				continue;
 
 			// might intersect, so do an exact clip
 			clipHandle = SV_ClipHandleForEntity(hit);

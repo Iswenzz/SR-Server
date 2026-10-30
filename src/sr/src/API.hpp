@@ -16,6 +16,7 @@ void SR_Packet(netadr_t *from, client_t *cl, msg_t *msg);
 void SR_InitializePlayer(client_t *cl);
 void SR_FreePlayer(client_t *cl);
 void SR_InitializeEntity(gentity_t *ent);
+qboolean SR_LayoutHidden(int clientNum, gentity_t *ent);
 void SR_ClientSpawn(gclient_t *client);
 void SR_CalculateFrame(client_t *cl, usercmd_t *cmd);
 void SR_BroadcastVoice(gentity_t *talker, struct VoicePacket_t *packet);

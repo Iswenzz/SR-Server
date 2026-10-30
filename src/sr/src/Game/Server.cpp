@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "Layout.hpp"
 #include "Map.hpp"
 
 #include "Audio/Voice.hpp"
@@ -20,6 +21,7 @@ namespace SR
 
 		Player::List = {};
 		Entity::List = {};
+		Layout::Restart();
 		DemoContainer::Demos.clear();
 	}
 
