@@ -20,5 +20,8 @@ namespace SR
 		static void GetDemoForwardMove(scr_entref_t num);
 		static void GetDemoButtons(scr_entref_t num);
 		static void StopDemo(scr_entref_t num);
+		static void StartGhost(scr_entref_t num);
+		static void FinishGhost(scr_entref_t num);
+		static void StopGhost(scr_entref_t num);
 	};
 }

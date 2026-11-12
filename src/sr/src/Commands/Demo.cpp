@@ -17,6 +17,9 @@ namespace SR
 		Scr_AddMethod("getdemotimer", GetDemoTimer, qfalse);
 		Scr_AddMethod("getdemoruntime", GetDemoRunTime, qfalse);
 		Scr_AddMethod("stopdemo", StopDemo, qfalse);
+		Scr_AddMethod("startghost", StartGhost, qfalse);
+		Scr_AddMethod("finishghost", FinishGhost, qfalse);
+		Scr_AddMethod("stopghost", StopGhost, qfalse);
 
 		Scr_AddFunction("registerspeedrundemo", RegisterSpeedrunDemo, qfalse);
 		Scr_AddFunction("isdemoloaded", IsDemoLoaded, qfalse);
@@ -212,5 +215,64 @@ namespace SR
 			return;
 		}
 		player->DemoPlayer->Stop();
+	}
+
+	// The time is where in the run the ghost starts, zero without one. False while the demo is not loaded.
+	void DemoCommands::StartGhost(scr_entref_t num)
+	{
+		const int params = Scr_GetNumParam();
+		if (params < 1 || params > 4)
+		{
+			Scr_Error("Usage: StartGhost(<id>, <name?>, <time?>, <record?>)");
+			return;
+		}
+
+		Ref<Player> player = Player::Get(num.entnum);
+		std::string id = Scr_GetString(0);
+		std::string name = params > 1 && Scr_GetType(1) == VAR_STRING ? Scr_GetString(1) : "";
+		const int time = params > 2 ? Scr_GetInt(2) : 0;
+		const int record = params > 3 ? Scr_GetInt(3) : 0;
+
+		if (!player)
+		{
+			Scr_ObjectError("Player not found.\n");
+			return;
+		}
+
+		auto demo = DemoContainer::Demos.find(id);
+		const bool loaded =
+			demo != std::end(DemoContainer::Demos) && demo->second->IsLoaded && !demo->second->Frames.empty();
+		if (loaded)
+			player->Ghost->Play(demo->second, name, time, record);
+		Scr_AddBool(loaded);
+	}
+
+	void DemoCommands::FinishGhost(scr_entref_t num)
+	{
+		CHECK_PARAMS(1, "Usage: FinishGhost(<time>)");
+
+		Ref<Player> player = Player::Get(num.entnum);
+		const int time = Scr_GetInt(0);
+
+		if (!player)
+		{
+			Scr_ObjectError("Player not found.\n");
+			return;
+		}
+		player->Ghost->Finish(time);
+	}
+
+	void DemoCommands::StopGhost(scr_entref_t num)
+	{
+		CHECK_PARAMS(0, "Usage: StopGhost()");
+
+		Ref<Player> player = Player::Get(num.entnum);
+
+		if (!player)
+		{
+			Scr_ObjectError("Player not found.\n");
+			return;
+		}
+		player->Ghost->Stop();
 	}
 }

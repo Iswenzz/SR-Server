@@ -2,6 +2,7 @@
 #include "PMove.hpp"
 
 #include "Game/Demo/DemoPlayer.hpp"
+#include "Game/Demo/GhostPlayer.hpp"
 
 #include <optional>
 
@@ -72,6 +73,7 @@ namespace SR
 		int RewindCount = 0;
 		Scope<class PMove> PMove;
 		Scope<class DemoPlayer> DemoPlayer;
+		Scope<GhostPlayer> Ghost;
 		int SurfaceFlags = 0;
 		bool Q3HitPlayers = false;
 		bool Q3ShowOthers = false;

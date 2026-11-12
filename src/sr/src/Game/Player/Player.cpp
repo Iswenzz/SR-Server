@@ -14,18 +14,21 @@ namespace SR
 	void Player::Initialize()
 	{
 		DemoPlayer = CreateScope<class DemoPlayer>(this);
+		Ghost = CreateScope<GhostPlayer>(this);
 		PMove = CreateScope<class PMove>(this);
 	}
 
 	void Player::Disconnect()
 	{
 		DemoPlayer->Stop();
+		Ghost->Stop();
 	}
 
-	// A rewind never reaches back across a respawn.
+	// A rewind never reaches back across a respawn, and neither does a ghost's run.
 	void Player::Spawn()
 	{
 		PMove->Initialize();
+		Ghost->Stop();
 
 		RewindIndex = 0;
 		RewindCount = 0;

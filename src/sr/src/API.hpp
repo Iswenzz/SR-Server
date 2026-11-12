@@ -33,6 +33,7 @@ qboolean SR_DemoIsPlaying(client_t *cl);
 void SR_DemoButton(client_t *cl, usercmd_t *cmd);
 void SR_DemoUpdateEntity(client_t *cl, snapshotInfo_t *snapInfo, msg_t *msg, const int time, entityState_t *from,
 	entityState_t *to, qboolean force);
+int SR_Ghost(int receiverNum, int viewedNum, entityState_t *entity, clientState_t *client);
 
 int SR_PmoveGetSpeed(playerState_t *ps);
 float SR_PmoveGetSpeedScale(playerState_t *ps);

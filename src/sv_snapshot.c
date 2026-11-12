@@ -867,6 +867,34 @@ static cachedSnapshot_t *SV_GetCachedSnapshot(int *pArchiveTime)
 	return NULL;
 }
 
+static entityState_t *SV_NextSnapshotEntity(clientSnapshot_t *frame)
+{
+	entityState_t *entState = &svs.snapshotEntities[svs.nextSnapshotEntities % svs.numSnapshotEntities];
+
+	svs.nextSnapshotEntities++;
+	// this should never hit, map should always be restarted first in SV_Frame
+	if (svs.nextSnapshotEntities >= 0x7FFFFFFE)
+	{
+		Com_Error(ERR_FATAL, "svs.nextSnapshotEntities wrapped");
+	}
+	frame->num_entities++;
+	return entState;
+}
+
+static clientState_t *SV_NextSnapshotClient(clientSnapshot_t *frame)
+{
+	clientState_t *clientState = &svs.snapshotClients[svs.nextSnapshotClients % svs.numSnapshotClients];
+
+	svs.nextSnapshotClients++;
+	// this should never hit, map should always be restarted first in SV_Frame
+	if (svs.nextSnapshotClients >= 0x7FFFFFFE)
+	{
+		Com_Error(ERR_FATAL, "svs.nextSnapshotClients wrapped");
+	}
+	frame->num_clients++;
+	return clientState;
+}
+
 /*
 SV_BuildClientSnapshot
 
@@ -896,6 +924,10 @@ static void SV_BuildClientSnapshot(client_t *client)
 	int archiveTime;
 	cachedSnapshot_t *cachedSnap;
 	client_t *snapClient;
+	entityState_t ghostEntity;
+	clientState_t ghostClient;
+	int ghostSlot;
+	qboolean ghostAdded;
 
 	// this is the frame we are creating
 	frame = &client->frames[client->netchan.outgoingSequence & PACKET_MASK];
@@ -1014,10 +1046,19 @@ static void SV_BuildClientSnapshot(client_t *client)
 	// may include portal entities that merge other viewpoints
 	SV_AddEntitiesVisibleFromPoint(org, clientNum, &entityNumbers);
 
+	// The viewed player's ghost is a player nobody holds the slot of; both lists stay sorted by number
+	ghostSlot = SR_Ghost(sv_snapshotReceiver, clientNum, &ghostEntity, &ghostClient);
+	ghostAdded = ghostSlot < 0;
+
 	// copy the entity states out
 	for (i = 0; i < entityNumbers.numSnapshotEntities; i++)
 	{
 		ent = SV_GentityNum(entityNumbers.snapshotEntities[i]);
+		if (!ghostAdded && ent->s.number > ghostSlot)
+		{
+			*SV_NextSnapshotEntity(frame) = ghostEntity;
+			ghostAdded = qtrue;
+		}
 		entState = &svs.snapshotEntities[svs.nextSnapshotEntities % svs.numSnapshotEntities];
 		*entState = ent->s;
 		svs.nextSnapshotEntities++;
@@ -1028,10 +1069,19 @@ static void SV_BuildClientSnapshot(client_t *client)
 		}
 		frame->num_entities++;
 	}
+	if (!ghostAdded)
+	{
+		*SV_NextSnapshotEntity(frame) = ghostEntity;
+	}
 
 	// copy the client states out
 	for (snapClient = svs.clients, i = 0; i < sv_maxclients->integer; i++, snapClient++)
 	{
+		if (i == ghostSlot)
+		{
+			*SV_NextSnapshotClient(frame) = ghostClient;
+			continue;
+		}
 		if (snapClient->state < CS_PRIMED
 			|| (!snapClient->gamestateSent && snapClient->netchan.remoteAddress.type != NA_BOT))
 		{
@@ -1055,6 +1105,10 @@ static void SV_BuildClientSnapshot(client_t *client)
 			Com_Error(ERR_FATAL, "svs.nextSnapshotClients wrapped");
 		}
 		frame->num_clients++;
+	}
+	if (ghostSlot >= sv_maxclients->integer)
+	{
+		*SV_NextSnapshotClient(frame) = ghostClient;
 	}
 }
 

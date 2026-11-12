@@ -3,6 +3,7 @@
 #include "Audio/Voice.hpp"
 #include "Commands/Container.hpp"
 #include "Game/Demo/DemoContainer.hpp"
+#include "Game/Demo/GhostPlayer.hpp"
 #include "Game/Player/PMove.hpp"
 #include "Game/VR.hpp"
 #include "System/Debug.hpp"
@@ -21,6 +22,7 @@ namespace SR
 		VR::Initialize();
 		PMove::Register();
 		DemoContainer::Initialize();
+		GhostPlayer::Initialize();
 		CommandsContainer::Initialize();
 		Debug::Initialize();
 	}

@@ -6,4 +6,6 @@ target_sources(SR PRIVATE
 	DemoRecord.hpp
 	DemoRecord.cpp
 	DemoContainer.hpp
-	DemoContainer.cpp)
+	DemoContainer.cpp
+	GhostPlayer.hpp
+	GhostPlayer.cpp)

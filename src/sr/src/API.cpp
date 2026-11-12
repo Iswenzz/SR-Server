@@ -163,6 +163,16 @@ void SR_DemoFrame(client_t *cl)
 {
 	DemoRecord::Frame(cl);
 	DemoPlayer::Snapshot(cl);
+	GhostPlayer::State(cl);
+}
+
+// The ghost of the player a snapshot shows, as the entity and the client of the slot returned; -1 without one.
+int SR_Ghost(int receiverNum, int viewedNum, entityState_t *entity, clientState_t *client)
+{
+	const auto &player = Player::Get(viewedNum);
+	if (!player || receiverNum < 0 || receiverNum >= MAX_CLIENTS)
+		return -1;
+	return player->Ghost->Snapshot(&svs.clients[receiverNum], entity, client);
 }
 
 void SR_Packet(netadr_t *from, client_t *cl, msg_t *msg)
