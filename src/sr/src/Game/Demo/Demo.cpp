@@ -110,6 +110,12 @@ namespace SR
 			std::from_chars(std::next(it)->data(), std::next(it)->data() + std::next(it)->size(), Version);
 	}
 
+	// The run timer at the demo's clock zero: version 1 demos start 900ms into the run, later ones 100ms before it.
+	int Demo::RunOffset() const
+	{
+		return Version == 1 ? 900 : -100;
+	}
+
 	int Demo::GetVelocity(DemoFrame &frame)
 	{
 		int frameVelocity = 0;

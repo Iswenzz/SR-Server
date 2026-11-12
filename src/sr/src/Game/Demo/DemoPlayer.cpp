@@ -150,12 +150,12 @@ namespace SR
 			frame.ps.viewangles[2] = std::lerp(frame.ps.viewangles[2], next.ps.viewangles[2], interpolate);
 	}
 
-	// The run timer at the playback clock: version 1 demos start 900ms into the run, later ones 100ms before it.
+	// The run timer at the playback clock.
 	int DemoPlayer::RunTime() const
 	{
 		if (!Demo || !HasFrame)
 			return 0;
-		return std::max(0, static_cast<int>(Clock) + (Demo->Version == 1 ? 900 : -100));
+		return std::max(0, static_cast<int>(Clock) + Demo->RunOffset());
 	}
 
 	// IW3SR shows the demo's state since 1.9.1; any other client would only print the datagrams as unknown.

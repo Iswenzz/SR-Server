@@ -49,6 +49,7 @@ namespace SR
 		void ReadDemoInformations();
 		void Interpolate(DemoFrame& interpolateFrame);
 		void GetVersion();
+		int RunOffset() const;
 		int GetVelocity(DemoFrame& frame);
 		std::vector<std::string> ProcessChat();
 		bool CanParseSnapshot();
