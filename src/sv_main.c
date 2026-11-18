@@ -343,6 +343,10 @@ void __cdecl SV_AddServerCommand(client_t *client, int type, const char *cmd)
 	index = client->reliableSequence & (MAX_RELIABLE_COMMANDS - 1);
 	MSG_WriteReliableCommandToBuffer(cmd, client->reliableCommands[index].command,
 		sizeof(client->reliableCommands[index].command));
+	if (SV_IsLegacyClient(client))
+	{
+		SV_LegacyColors(client->reliableCommands[index].command);
+	}
 	client->reliableCommands[index].cmdTime = svs.time;
 	client->reliableCommands[index].cmdType = type;
 	//    Com_Printf(CON_CHANNEL_SERVER,"ReliableCommand: %s\n", cmd);
@@ -3075,6 +3079,23 @@ qboolean SV_IsLegacyClientNum(int clientNum)
 	return SV_IsLegacyClient(&svs.clients[clientNum]);
 }
 
+/* Stock 1.7 only reads ^0 to ^9 as colors and prints the ones CoD4X added,
+   ^: to ^@, as raw text. Each is swapped in place for the stock color nearest
+   to it: red, green, orange, blue, silver, purple, brown. */
+void SV_LegacyColors(char *text)
+{
+	static const char nearest[] = "1234763";
+
+	for (; text[0]; text++)
+	{
+		if (text[0] == Q_COLOR_ESCAPE && text[1] >= ':' && text[1] <= '@')
+		{
+			text[1] = nearest[text[1] - ':'];
+			text++;
+		}
+	}
+}
+
 /* True for slots SV_SpawnServer preloaded with sv.emptyConfigString and never
    filled in. Testing the raw index against 0 matches nothing. */
 static qboolean SV_IsEmptyConfigstring(unsigned short strindex)
@@ -3103,6 +3124,7 @@ void SV_WriteGameStateLegacy(msg_t *msg, client_t *cl)
 	snapshotInfo_t snapInfo;
 	unsigned short strindex;
 	const char *val;
+	char colors[BIG_INFO_STRING];
 
 	MSG_WriteByte(msg, svc_gamestate);
 	MSG_WriteLong(msg, cl->reliableSequence);
@@ -3142,6 +3164,12 @@ void SV_WriteGameStateLegacy(msg_t *msg, client_t *cl)
 		if (i == VERSION_CONFIGSTRING)
 		{
 			val = LEGACY_VERSION_TAG;
+		}
+		if (strlen(val) < sizeof(colors))
+		{
+			strcpy(colors, val);
+			SV_LegacyColors(colors);
+			val = colors;
 		}
 
 		MSG_WriteBit0(msg);

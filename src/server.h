@@ -628,6 +628,7 @@ extern "C"
 
 	qboolean SV_IsLegacyClient(const client_t *cl);
 	qboolean SV_IsLegacyClientNum(int clientNum);
+	void SV_LegacyColors(char *text);
 
 	void SV_GetServerStaticHeader(void);
 

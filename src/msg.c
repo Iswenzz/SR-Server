@@ -2832,11 +2832,23 @@ void MSG_WriteDeltaClient(struct snapshotInfo_s *snapInfo, msg_t *msg, const int
 	clientState_t *to, qboolean force)
 {
 	clientState_t nullstate; // [sp+2Ch] [bp-7Ch]@10
+	clientState_t legacyFrom, legacyTo;
 
 	if (!from)
 	{
 		from = &nullstate;
 		memset(&nullstate, 0, sizeof(nullstate));
+	}
+
+	/* Both ends of the delta, so it matches the names this client was sent before. */
+	if (to && snapInfo && SV_IsLegacyClientNum(snapInfo->clnum))
+	{
+		legacyFrom = *from;
+		legacyTo = *to;
+		SV_LegacyColors(legacyFrom.netname);
+		SV_LegacyColors(legacyTo.netname);
+		from = &legacyFrom;
+		to = &legacyTo;
 	}
 	int numFields = sizeof(clientStateFields) / sizeof(clientStateFields[0]);
 	if (to)
