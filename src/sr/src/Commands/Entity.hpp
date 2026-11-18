@@ -7,5 +7,8 @@ namespace SR
 	{
 	public:
 		static void Register();
+
+	private:
+		static void FollowMovement(scr_entref_t num);
 	};
 }

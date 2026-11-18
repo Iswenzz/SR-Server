@@ -2,8 +2,10 @@
 #include "Player.hpp"
 
 #include "Movements/CS.hpp"
+#include "Movements/Monkey.hpp"
 #include "Movements/Q3.hpp"
 #include "Movements/Q3Weapons.hpp"
+#include "Movements/Racer.hpp"
 #include "Q3WeaponWorld.hpp"
 
 namespace SR
@@ -13,9 +15,12 @@ namespace SR
 		Player = player;
 		Weapons = CreateScope<Q3WeaponState>();
 		WeaponEvents = CreateScope<Q3WeaponEvents>();
+		Ball = CreateScope<MonkeyState>();
 	}
 
-	PMove::~PMove() = default;
+	PMove::~PMove()
+	{
+	}
 
 	void PMove::Initialize()
 	{
@@ -24,6 +29,7 @@ namespace SR
 		Player->cl->jumpHeight = jump_height->value;
 
 		*Weapons = {};
+		*Ball = {};
 		WeaponEvents->clear();
 	}
 
@@ -32,6 +38,10 @@ namespace SR
 		// In the systeminfo, where IW3SR looks for it before predicting the Q3 weapons.
 		Cvar_RegisterBool("sr_q3weapons", qtrue, CVAR_SYSTEMINFO | CVAR_ROM,
 			"Simulates the Q3CPMW rocket and plasma in pmove");
+
+		// In the systeminfo too: the stat a minigame's movement is told by means nothing on another server.
+		Cvar_RegisterBool("sr_movements", qtrue, CVAR_SYSTEMINFO | CVAR_ROM,
+			"Moves the players of the racing and ball minigames their own way");
 	}
 
 	int PMove::GetSpeed()
@@ -54,8 +64,17 @@ namespace SR
 		return Player->cl->jumpHeight;
 	}
 
+	// A minigame that moves its players its own way says so in a stat of its own, over the mode they chose.
 	MovementMode PMove::GetMovementMode()
 	{
+		switch (SV_GetClientStat(Player->ps->clientNum, 1701)) // sr_movement
+		{
+		case 1:
+			return MovementMode::MKW;
+		case 2:
+			return MovementMode::SMB;
+		}
+
 		switch (SV_GetClientStat(Player->ps->clientNum, 1700)) // sr_mode
 		{
 		case 1: // 190
@@ -71,6 +90,12 @@ namespace SR
 			return MovementMode::CS;
 		}
 		return MovementMode::COD4;
+	}
+
+	// Grown by a mega mushroom, which the racing minigame says in a stat of its own.
+	bool PMove::IsBig()
+	{
+		return SV_GetClientStat(Player->ps->clientNum, 1702) == 1; // sr_size
 	}
 
 	bool PMove::HasQ3Weapons()
@@ -168,6 +193,12 @@ namespace SR
 		case MovementMode::CS:
 			CS::WalkMove(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml));
 			return true;
+		case MovementMode::SMB:
+			Monkey::Move(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), *Ball);
+			return true;
+		case MovementMode::MKW:
+			Racer::WalkMove(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), IsBig());
+			return true;
 		}
 		return false;
 	}
@@ -185,6 +216,12 @@ namespace SR
 		case MovementMode::CS:
 			CS::AirMove(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml));
 			return true;
+		case MovementMode::SMB:
+			Monkey::Move(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), *Ball);
+			return true;
+		case MovementMode::MKW:
+			Racer::AirMove(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), IsBig());
+			return true;
 		}
 		return false;
 	}
@@ -199,17 +236,37 @@ namespace SR
 		else
 			Weapons->count = 0;
 
+		if (GetMovementMode() != MovementMode::SMB)
+			Ball->Running = false;
+
 		switch (GetMovementMode())
 		{
 		case MovementMode::Q3:
 		case MovementMode::Q3CPM:
+		case MovementMode::MKW:
 			Q3::GroundTrace(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml));
 			return true;
 		case MovementMode::CS:
 			CS::GroundTrace(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml));
 			return true;
+		case MovementMode::SMB:
+			Monkey::GroundTrace(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), *Ball);
+			return true;
 		}
 		return false;
+	}
+
+	// Where what the player rides is and how it is turned, or with part 1 whoever stands inside it. Nothing,
+	// on foot.
+	bool PMove::Pose(vec3 &origin, vec3 &angles, int part)
+	{
+		switch (GetMovementMode())
+		{
+		case MovementMode::SMB:
+			return part <= 1 && Monkey::Pose(*Ball, origin, angles, part == 1);
+		default:
+			return false;
+		}
 	}
 
 	bool PMove::CrashLand(playerState_s *ps, pml_t *pml)

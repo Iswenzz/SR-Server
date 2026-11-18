@@ -5,6 +5,7 @@ namespace SR
 {
 	struct Q3WeaponState;
 	struct Q3WeaponEvent;
+	struct MonkeyState;
 
 	enum class MovementMode
 	{
@@ -12,6 +13,8 @@ namespace SR
 		Q3,
 		Q3CPM,
 		CS,
+		SMB,
+		MKW,
 	};
 
 	class PMove
@@ -21,6 +24,7 @@ namespace SR
 		// Kept behind pointers: the movement headers' CoD4 class would hide the CoD4 demo namespace
 		Scope<Q3WeaponState> Weapons;
 		Scope<std::vector<Q3WeaponEvent>> WeaponEvents;
+		Scope<MonkeyState> Ball;
 
 		PMove(class Player *player);
 		virtual ~PMove();
@@ -33,6 +37,8 @@ namespace SR
 		int GetGravity();
 		float GetJumpHeight();
 		MovementMode GetMovementMode();
+		bool Pose(vec3 &origin, vec3 &angles, int part);
+		bool IsBig();
 		bool HasQ3Weapons();
 		bool IsQ3Cpm();
 		bool IsQ3Weapon(int weapon);
