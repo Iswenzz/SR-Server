@@ -1159,6 +1159,19 @@ __optimize3 __regparm3 void SV_UserMove(client_t *cl, msg_t *msg, qboolean delta
 	}
 }
 
+/* The minigames' stats (sr_movement, sr_size) last a session. One set as a map ended may
+   never reach the client, and SV_SetClientStat skips a value the server already holds, so the
+   client kept moving its minigame's way after the server had stopped. */
+static void SV_ResendSessionStats(client_t *client)
+{
+	int index;
+
+	if (client->netchan.remoteAddress.type == NA_BOT)
+		return;
+	for (index = 1701; index <= 1702; index++)
+		SV_SendServerCommandNoLoss(client, "%c %i %i", 'N', index, client->stats.data.bytedata[index]);
+}
+
 void SV_ClientEnterWorld(client_t *client, usercmd_t *cmd)
 {
 	int clientNum;
@@ -1197,6 +1210,8 @@ void SV_ClientEnterWorld(client_t *client, usercmd_t *cmd)
 		SV_DropClient(client, "EXE_UNPURECLIENTDETECTED");
 		return;
 	}
+
+	SV_ResendSessionStats(client);
 
 	// call the game begin function
 	ClientBegin(clientNum);
