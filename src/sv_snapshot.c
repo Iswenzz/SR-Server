@@ -1061,6 +1061,9 @@ static void SV_BuildClientSnapshot(client_t *client)
 		}
 		entState = &svs.snapshotEntities[svs.nextSnapshotEntities % svs.numSnapshotEntities];
 		*entState = ent->s;
+		// A player this one passes through is no box to its prediction either
+		if (SR_PlayersApart(clientNum, ent))
+			entState->solid = 0;
 		svs.nextSnapshotEntities++;
 		// this should never hit, map should always be restarted first in SV_Frame
 		if (svs.nextSnapshotEntities >= 0x7FFFFFFE)

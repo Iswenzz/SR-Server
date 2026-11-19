@@ -18,6 +18,8 @@ void SR_FreePlayer(client_t *cl);
 void SR_InitializeEntity(gentity_t *ent);
 qboolean SR_LayoutHidden(int clientNum, gentity_t *ent);
 qboolean SR_SnapshotHidden(int receiverNum, int viewedNum, gentity_t *ent);
+qboolean SR_ClipHidden(int clientNum, gentity_t *ent);
+qboolean SR_PlayersApart(int clientNum, gentity_t *ent);
 void SR_ClientSpawn(gclient_t *client);
 void SR_CalculateFrame(client_t *cl, usercmd_t *cmd);
 void SR_BroadcastVoice(gentity_t *talker, struct VoicePacket_t *packet);

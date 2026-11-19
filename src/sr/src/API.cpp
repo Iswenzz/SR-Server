@@ -80,6 +80,16 @@ qboolean SR_LayoutHidden(int clientNum, gentity_t *ent)
 	return Layout::Hidden(clientNum, ent) ? qtrue : qfalse;
 }
 
+qboolean SR_ClipHidden(int clientNum, gentity_t *ent)
+{
+	return Layout::Hidden(clientNum, ent) || Player::Apart(clientNum, ent) ? qtrue : qfalse;
+}
+
+qboolean SR_PlayersApart(int clientNum, gentity_t *ent)
+{
+	return Player::Apart(clientNum, ent) ? qtrue : qfalse;
+}
+
 qboolean SR_SnapshotHidden(int receiverNum, int viewedNum, gentity_t *ent)
 {
 	return Q3WeaponWorld::Hidden(receiverNum, viewedNum, ent) ? qtrue : qfalse;

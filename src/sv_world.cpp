@@ -116,7 +116,7 @@ extern "C"
 
 	qboolean G_ShouldEntitiesClip(moveclip_t *clip, int touchNum, gentity_t *touch)
 	{
-		if (SR_LayoutHidden(clip->passEntityNum, touch) || SR_LayoutHidden(clip->passOwnerNum, touch))
+		if (SR_ClipHidden(clip->passEntityNum, touch) || SR_ClipHidden(clip->passOwnerNum, touch))
 			return qfalse;
 
 		if (clip->passEntityNum < 64 && clip->contentmask & CONTENTS_PLAYERCLIP)
@@ -343,7 +343,7 @@ extern "C"
 				continue;
 			}
 			hit = SV_GentityNum(touch[i]);
-			if (SR_LayoutHidden(passEntityNum, hit))
+			if (SR_ClipHidden(passEntityNum, hit))
 				continue;
 
 			// might intersect, so do an exact clip
@@ -1127,7 +1127,7 @@ void __cdecl SV_PointTraceToEntity(struct pointtrace_t *clip, svEntity_t *check,
 		if (inp != NULL && inp->baseEntity != ENTITYNUM_NONE)
 		{
 			// Point traces skip G_ShouldEntitiesClip, so the other layout's brushwork is filtered here
-			if (SR_LayoutHidden(inp->baseEntity, touch) || SR_LayoutHidden(inp->parentEntity, touch))
+			if (SR_ClipHidden(inp->baseEntity, touch) || SR_ClipHidden(inp->parentEntity, touch))
 			{
 				return;
 			}

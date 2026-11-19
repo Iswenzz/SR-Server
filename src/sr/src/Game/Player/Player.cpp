@@ -236,6 +236,19 @@ namespace SR
 		return List[num];
 	}
 
+	// Whether a player passes through another: one in a minigame and one not, or two in different ones, never
+	// meet, and balls do not meet as bodies at all, their bump being their own.
+	bool Player::Apart(int clientNum, const gentity_t *ent)
+	{
+		if (clientNum < 0 || clientNum >= MAX_CLIENTS || !ent || !ent->client || ent->s.number >= MAX_CLIENTS
+			|| ent->s.number == clientNum)
+			return false;
+
+		const int self = SV_GetClientStat(clientNum, 1701); // sr_movement
+		const int other = SV_GetClientStat(ent->s.number, 1701);
+		return self != other || self == 2;
+	}
+
 	void Player::Add(client_t *cl)
 	{
 		Ref<Player> player = CreateRef<Player>(cl);

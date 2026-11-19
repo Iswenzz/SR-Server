@@ -109,6 +109,7 @@ namespace SR
 
 		clientSnapshot_t *GetFrame();
 		static const Ref<Player> &Get(int num);
+		static bool Apart(int clientNum, const gentity_t *ent);
 		static void Add(client_t *cl);
 	};
 }
