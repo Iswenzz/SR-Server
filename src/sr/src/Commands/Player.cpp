@@ -17,6 +17,7 @@ namespace SR
 		Scr_AddMethod("radioenable", RadioEnable, qfalse);
 		Scr_AddMethod("rewindstate", RewindState, qfalse);
 		Scr_AddMethod("savestate", SaveState, qfalse);
+		Scr_AddMethod("setballsolid", SetBallSolid, qfalse);
 		Scr_AddMethod("setjumporigin", SetJumpOrigin, qfalse);
 		Scr_AddMethod("setq3weapons", SetQ3Weapons, qfalse);
 		Scr_AddMethod("surfaceflags", SurfaceFlags, qfalse);
@@ -90,6 +91,21 @@ namespace SR
 		}
 		player->Q3HitPlayers = Scr_GetInt(0);
 		player->Q3ShowOthers = Scr_GetInt(1);
+	}
+
+	// Whether the ball meets the other balls; it does again from its next spawn.
+	void PlayerCommands::SetBallSolid(scr_entref_t num)
+	{
+		CHECK_PARAMS(1, "Usage: SetBallSolid(<solid>)\n");
+
+		Ref<Player> player = Player::Get(num.entnum);
+
+		if (!player)
+		{
+			Scr_ObjectError("Player not found.\n");
+			return;
+		}
+		player->PMove->BallSolid = Scr_GetInt(0);
 	}
 
 	void PlayerCommands::GetViewHeightLerpDown(scr_entref_t num)

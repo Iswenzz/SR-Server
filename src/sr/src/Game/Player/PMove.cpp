@@ -30,6 +30,8 @@ namespace SR
 
 		*Weapons = {};
 		*Ball = {};
+		BumpFrom = svs.time + 5000;
+		BallSolid = true;
 		WeaponEvents->clear();
 	}
 
@@ -195,6 +197,7 @@ namespace SR
 			return true;
 		case MovementMode::SMB:
 			Monkey::Move(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), *Ball);
+			Bump();
 			return true;
 		case MovementMode::MKW:
 			Racer::WalkMove(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), IsBig());
@@ -218,6 +221,7 @@ namespace SR
 			return true;
 		case MovementMode::SMB:
 			Monkey::Move(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), *Ball);
+			Bump();
 			return true;
 		case MovementMode::MKW:
 			Racer::AirMove(reinterpret_cast<pmove_tt *>(pm), reinterpret_cast<pml_tt *>(pml), IsBig());
@@ -254,6 +258,29 @@ namespace SR
 			return true;
 		}
 		return false;
+	}
+
+	// Every other ball in play that this one ran into, both knocked apart once both are 5 seconds past a spawn
+	// and neither has been let through (at the goal). Only the server sees them all; a client takes the change
+	// from its playerstate, as it takes any push.
+	void PMove::Bump()
+	{
+		if (svs.time < BumpFrom || !BallSolid)
+			return;
+		for (const Ref<class Player> &other : SR::Player::List)
+		{
+			if (!other || other.get() == Player || !other->ps || !other->PMove || other->ps->pm_type != PM_NORMAL
+				|| other->PMove->GetMovementMode() != MovementMode::SMB || svs.time < other->PMove->BumpFrom
+				|| !other->PMove->BallSolid)
+				continue;
+
+			const vec3 speed = Monkey::Bump(*Ball, *other->PMove->Ball);
+			for (int i = 0; i < 3; i++)
+			{
+				Player->ps->velocity[i] += speed[i];
+				other->ps->velocity[i] -= speed[i];
+			}
+		}
 	}
 
 	// Where what the player rides is and how it is turned, or with part 1 whoever stands inside it. Nothing,

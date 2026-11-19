@@ -18,6 +18,7 @@ namespace SR
 		static void RadioEnable(scr_entref_t num);
 		static void RewindState(scr_entref_t num);
 		static void SaveState(scr_entref_t num);
+		static void SetBallSolid(scr_entref_t num);
 		static void SetJumpOrigin(scr_entref_t num);
 		static void SetQ3Weapons(scr_entref_t num);
 		static void SurfaceFlags(scr_entref_t num);

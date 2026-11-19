@@ -53,6 +53,7 @@ namespace SR
 		static void GroundTrace(pmove_tt* pm, pml_tt* pml, const MonkeyState& state);
 		static void Move(pmove_tt* pm, pml_tt* pml, MonkeyState& state);
 		static bool Pose(const MonkeyState& state, vec3& origin, vec3& angles, bool inside);
+		static vec3 Bump(MonkeyState& self, MonkeyState& other);
 
 	private:
 		static void Follow(const playerState_tt* ps, MonkeyState& state);

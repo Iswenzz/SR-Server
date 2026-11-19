@@ -25,6 +25,9 @@ namespace SR
 		Scope<Q3WeaponState> Weapons;
 		Scope<std::vector<Q3WeaponEvent>> WeaponEvents;
 		Scope<MonkeyState> Ball;
+		// Until when the ball passes through the others, as everyone starts a round on the same spot.
+		int BumpFrom = 0;
+		bool BallSolid = true;
 
 		PMove(class Player *player);
 		virtual ~PMove();
@@ -49,6 +52,7 @@ namespace SR
 		void NotifyWeapons();
 		bool WalkMove(pmove_t *pm, pml_t *pml);
 		bool AirMove(pmove_t *pm, pml_t *pml);
+		void Bump();
 		bool GroundTrace(pmove_t *pm, pml_t *pml);
 		bool CrashLand(playerState_s *ps, pml_t *pml);
 	};
