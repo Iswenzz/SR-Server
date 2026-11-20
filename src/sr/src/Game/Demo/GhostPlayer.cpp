@@ -30,7 +30,8 @@ namespace SR
 
 	void GhostPlayer::Initialize()
 	{
-		LeadOffset = Cvar_RegisterInt("sr_ghost_lead", 25, -500, 500, 0,
+		// A command reaches the server's snapshots about a snapshot interval plus 10ms after the view showed it.
+		LeadOffset = Cvar_RegisterInt("sr_ghost_lead", 60, -500, 500, 0,
 			"Milliseconds a ghost runs ahead of its player, on top of their ping");
 	}
 
