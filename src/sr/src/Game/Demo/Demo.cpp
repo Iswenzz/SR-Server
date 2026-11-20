@@ -6,6 +6,12 @@
 
 namespace SR
 {
+	namespace
+	{
+		// How far into a demo its run timer is looked for, so a later run's timer is never taken for it.
+		constexpr int RunSearch = 1000;
+	}
+
 	Demo::Demo(const std::string &id, const std::string &path)
 	{
 		ID = id;
@@ -45,6 +51,8 @@ namespace SR
 				frame.chat = ProcessChat();
 				frame.time = Reader->GetTimeMilliseconds();
 				frame.fps = Reader->GetFPS();
+				if (RunStart < 0)
+					FindRunStart(ps, frame.time);
 				frame.ps = *reinterpret_cast<playerState_t *>(&ps);
 
 				if (archive.commandTime)
@@ -110,10 +118,33 @@ namespace SR
 			std::from_chars(std::next(it)->data(), std::next(it)->data() + std::next(it)->size(), Version);
 	}
 
-	// The run timer at the demo's clock zero: version 1 demos start 900ms into the run, later ones 100ms before it.
+	// The run starts on the frame the mod's count up timer first shows, counting from after the recording began.
+	// The mods start it a server frame or two into the recording, depending on how the run began.
+	void Demo::FindRunStart(const CoD4::DM1::playerState_t &ps, int time)
+	{
+		if (time > RunSearch)
+			return;
+
+		for (const auto *huds : { ps.hud.current, ps.hud.archival })
+		{
+			for (int i = 0; i < MAX_HUDELEMENTS; i++)
+			{
+				if (huds[i].type == CoD4::DM1::HE_TYPE_TENTHS_TIMER_UP
+					&& huds[i].time >= Reader->DemoFile->StartSnapshotTime)
+				{
+					RunStart = time;
+					return;
+				}
+			}
+		}
+	}
+
+	// The run timer at the demo's clock zero. Version 1 demos start 900ms into the run.
 	int Demo::RunOffset() const
 	{
-		return Version == 1 ? 900 : -100;
+		if (Version == 1)
+			return 900;
+		return RunStart >= 0 ? -RunStart : -50;
 	}
 
 	int Demo::GetVelocity(DemoFrame &frame)

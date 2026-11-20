@@ -38,6 +38,7 @@ namespace SR
 		std::string PlayerName;
 
 		int Version = 0;
+		int RunStart = -1;
 		int LastValidFrame = 0;
 		bool HasReadInformations = false;
 		std::atomic<bool> IsLoaded = false;
@@ -49,6 +50,7 @@ namespace SR
 		void ReadDemoInformations();
 		void Interpolate(DemoFrame& interpolateFrame);
 		void GetVersion();
+		void FindRunStart(const CoD4::DM1::playerState_t& ps, int time);
 		int RunOffset() const;
 		int GetVelocity(DemoFrame& frame);
 		std::vector<std::string> ProcessChat();
